@@ -11,10 +11,9 @@ import { auth } from '../lib/firebase'
 import { signInAnonymously, onAuthStateChanged, User } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import { Loader2 } from 'lucide-react'
+import { Loader2, User as UserIcon } from 'lucide-react'
 import { useNotifStore } from "./nusadex/notifStore";
 import NusadexPopup from "./nusadex/NusadexPopup";
-import { Loader2, User as UserIcon } from 'lucide-react'
 
 const GameScene = dynamic(() => import('./game/GameScene'), { ssr: false })
 
@@ -22,7 +21,6 @@ export default function Home() {
   const router = useRouter()
   const { hasSaveData, playerName, setPlayerProfile, menuState, setMenuState, setNusadexOpen } = useJoystickStore()
   const { hasNewNotif } = useNotifStore();
-  const { hasSaveData, playerName, setPlayerProfile, menuState, setMenuState } = useJoystickStore()
   const { startTransition } = useTransitionStore()
 
   // 1. Check Auth & Save Data on Mount
@@ -129,20 +127,44 @@ export default function Home() {
         </div>
       )}
 
-      {/* Profil Navigation Button HUD */}
+      {/* Right HUD (ID Card & Nusadex) */}
       <div
-        className={`absolute top-6 right-6 z-40 transition-opacity duration-1000
-          ${menuState === 'playing' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        className={`absolute top-6 right-0 md:top-8 md:right-4 z-40 flex flex-col items-end gap-2 md:gap-4 transition-all duration-1000
+          ${menuState === 'playing' ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-10 pointer-events-none'}`}
       >
+        {/* ID Card */}
         <button
           onClick={() => startTransition(() => router.push('/profile'))}
-          className="bg-[#FEF08A] text-[#374151] border-[4px] border-[#374151] rounded-[20px] px-6 py-3 flex items-center justify-center hover:bg-[#FDE047] transition-colors shadow-[0_4px_0_#374151] active:translate-y-1 active:shadow-none"
+          className="relative w-36 h-20 md:w-52 md:h-28 hover:scale-110 transition-transform cursor-pointer shrink-0 origin-right"
         >
-          <UserIcon className="w-8 h-8 mr-3" strokeWidth={3} />
-          <span style={{ fontFamily: 'var(--font-nanum-pen)' }} className="text-4xl font-black mt-2">
-            Profil
-          </span>
+          <Image
+            src="/nusadex/Idcard.png"
+            alt="ID Card"
+            fill
+            className="object-contain object-right"
+            priority
+          />
         </button>
+
+        {/* Nusadex Icon */}
+        {menuState === "playing" && (
+          <div
+            onClick={() => setNusadexOpen(true)}
+            className="relative w-28 h-36 md:w-40 md:h-48 hover:scale-[1.05] transition-transform cursor-pointer shrink-0 origin-right"
+          >
+            <Image
+              src="/nusadex/nusadexs.png"
+              alt="Nusadex"
+              fill
+              className="object-contain object-right"
+              priority
+            />
+            {/* Notification Dot */}
+            {hasNewNotif && (
+              <div className="absolute top-2 right-1 md:top-4 md:right-3 w-5 h-5 md:w-6 md:h-6 bg-red-600 rounded-full border-[3px] border-white animate-pulse" />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Mobile Joystick */}
@@ -159,27 +181,6 @@ export default function Home() {
           stop={handleJoystickStop}
         />
       </div>
-      {/* Nusadex Icon */}
-      {menuState === "playing" && (
-        <div
-          onClick={() => setNusadexOpen(true)}
-          className="absolute top-6 right-6 z-40 transition-transform duration-300 hover:scale-110 cursor-pointer"
-        >
-          <div className={`relative w-24 h-24 md:w-32 md:h-32 drop-shadow-xl`}>
-            <Image
-              src="/nusadex/nusadex-beta.png"
-              alt="Nusadex"
-              fill
-              className={`object-contain ${hasNewNotif ? "phone-vibrate" : ""}`}
-              priority
-            />
-            {/* Notification Dot */}
-            {hasNewNotif && (
-              <div className="absolute top-[-6px] right-[10px] w-4 h-4 md:w-5 md:h-5 bg-red-600 rounded-full border-2 border-white shadow-lg animate-pulse" />
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Nusadex Popup */}
       <NusadexPopup />

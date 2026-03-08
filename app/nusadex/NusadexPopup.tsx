@@ -80,38 +80,49 @@ export default function NusadexPopup() {
 
       {/* Main Device Container */}
       <div
-        className={`relative w-full max-w-sm bg-[#f5f5dc] border-4 border-[#4a4a4a] rounded-[2.5rem] shadow-[20px_20px_0px_0px_rgba(0,0,0,0.2)] transform overflow-hidden
+        className={`relative w-full max-w-sm bg-[#FFFDF0] border-[8px] border-[#374151] rounded-[3rem] shadow-[12px_12px_0px_#374151] transform overflow-hidden
           ${isClosing ? "animate-screen-off" : isVisible ? "animate-screen-on" : ""}`}
         style={{
           height: "85vh",
-          maxHeight: "700px",
-          backgroundImage:
-            'url("https://www.transparenttextures.com/patterns/recycled-paper.png")',
+          maxHeight: "750px",
           fontFamily: "var(--font-nanum-pen)",
         }}
       >
-        <div className="flex flex-col h-full relative z-10 pt-8">
+        {/* Phone Notch */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-[#374151] rounded-b-3xl z-50 flex items-center justify-center gap-2">
+          {/* Camera Lens */}
+          <div className="w-2.5 h-2.5 rounded-full bg-[#111827] border border-[#4B5563]"></div>
+          {/* Speaker */}
+          <div className="w-10 h-1 rounded-full bg-[#111827]"></div>
+        </div>
+
+        {/* Side physical buttons (visual only) */}
+        <div className="absolute top-24 -left-3 w-1.5 h-12 bg-[#374151] rounded-l-md z-[-1]"></div>
+        <div className="absolute top-40 -left-3 w-1.5 h-16 bg-[#374151] rounded-l-md z-[-1]"></div>
+        <div className="absolute top-32 -right-3 w-1.5 h-16 bg-[#374151] rounded-r-md z-[-1]"></div>
+
+        <div className="flex flex-col h-full relative z-10 pt-10">
           {/* Header Section */}
           <div className="flex items-center justify-between px-6 mb-4">
             <div className="flex items-center gap-2">
               {view === "detail" && (
                 <button
                   onClick={() => setView("list")}
-                  className="p-1 hover:bg-black/5 rounded-full transition-transform active:scale-90 cursor-pointer"
+                  className="p-1 hover:bg-[#374151]/10 rounded-full transition-transform active:scale-90 cursor-pointer"
                 >
-                  <ChevronLeft className="w-8 h-8 text-[#4a4a4a]" />
+                  <ChevronLeft className="w-8 h-8 text-[#374151]" strokeWidth={3} />
                 </button>
               )}
-              <h2 className="text-4xl text-[#2d2d2d] tracking-wider drop-shadow-sm">
+              <h2 className="text-4xl font-black text-[#374151] tracking-wider drop-shadow-[2px_2px_0_#FFF]">
                 {view === "list" ? "NUSADEX" : "DETAIL"}
               </h2>
             </div>
             {view === "list" && (
               <button
                 onClick={handleClose}
-                className="p-1 hover:bg-black/5 rounded-full transition-transform active:scale-90 cursor-pointer"
+                className="p-1.5 bg-red-100 hover:bg-red-200 border-2 border-red-500 rounded-full transition-transform active:scale-90 cursor-pointer shadow-[2px_2px_0_#EF4444]"
               >
-                <Power className="w-8 h-8 text-red-600/80" />
+                <Power className="w-6 h-6 text-red-600" strokeWidth={3} />
               </button>
             )}
           </div>
@@ -121,40 +132,42 @@ export default function NusadexPopup() {
             {view === "list" && (
               <div className="flex flex-col h-full px-6 animate-in fade-in slide-in-from-left duration-300">
                 <div className="relative mb-6">
+                  <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                    <Search className="w-6 h-6 text-[#374151]" strokeWidth={3} />
+                  </div>
                   <input
                     type="text"
                     placeholder="Cari Anomali..."
-                    className="w-full bg-transparent border-b-2 border-[#4a4a4a] px-4 py-2 text-3xl focus:outline-none placeholder-[#4a4a4a]/40 text-[#2d2d2d]"
+                    className="w-full bg-white border-[3px] border-[#374151] rounded-2xl pl-12 pr-4 py-3 text-3xl focus:outline-none placeholder-[#374151]/40 text-[#374151] shadow-[4px_4px_0_#374151]"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
-                  <Search className="absolute right-2 top-3 w-5 h-5 text-[#4a4a4a]/40" />
                 </div>
 
-                <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar pb-10">
+                <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar pb-10">
                   <div className="grid grid-cols-2 gap-4">
                     {filteredCreatures.map((creature) => (
                       <div
                         key={creature.id}
                         onClick={() => handleSelect(creature)}
-                        className="group flex flex-col items-center bg-white/40 border-2 border-[#4a4a4a]/10 hover:border-[#4a4a4a] rounded-3xl transition-all cursor-pointer p-2 overflow-hidden"
+                        className="group flex flex-col bg-white border-[3px] border-[#374151] rounded-2xl transition-all cursor-pointer p-3 overflow-hidden shadow-[4px_4px_0_#374151] hover:translate-y-1 hover:translate-x-1 hover:shadow-[0_0_0_#374151]"
                       >
-                        <div className="relative w-full aspect-square bg-linear-to-b from-transparent to-black/5 rounded-2xl flex items-center justify-center overflow-hidden pointer-events-none">
-                          <Suspense
-                            fallback={
-                              <Loader2 className="w-6 h-6 animate-spin text-black/10" />
-                            }
-                          >
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-xl font-bold text-[#374151] bg-[#FFE4A0] border-2 border-[#374151] px-2 py-0.5 rounded-md shadow-[2px_2px_0_#374151] rotate-[-2deg]">
+                            #{creature.id.toString().padStart(3, '0')}
+                          </span>
+                        </div>
+                        <div className="relative w-full aspect-square bg-[#E5F6FD] border-[3px] border-[#374151] rounded-xl flex items-center justify-center overflow-hidden pointer-events-none">
+                          <Suspense fallback={<Loader2 className="w-6 h-6 animate-spin text-[#374151]" />}>
                             <Creature3D
                               modelUrl={creature.modelUrl}
                               autoRotate={false}
+                              scale={creature.scale || 1}
+                              position={creature.position || [0, 0, 0]}
                             />
                           </Suspense>
-                          <div className="absolute top-1 left-2 text-lg font-bold opacity-20">
-                            #{creature.id}
-                          </div>
                         </div>
-                        <h3 className="text-2xl text-[#2d2d2d] mt-1 text-center truncate w-full px-1">
+                        <h3 className="text-[26px] text-[#374151] font-black mt-3 text-center truncate w-full tracking-wide">
                           {creature.name}
                         </h3>
                       </div>
@@ -166,76 +179,79 @@ export default function NusadexPopup() {
 
             {/* Detail View */}
             {view === "detail" && selectedCreature && (
-              <div className="flex flex-col h-full px-6 animate-in fade-in slide-in-from-right duration-300 overflow-y-auto custom-scrollbar pb-8">
-                <h2 className="text-6xl text-[#2d2d2d] leading-none">
+              <div className="flex flex-col h-full px-6 animate-in fade-in slide-in-from-right duration-300 overflow-y-auto custom-scrollbar pb-8 pt-2">
+                <h2 className="text-[3.5rem] text-[#374151] font-black leading-none uppercase drop-shadow-[2px_2px_0_#fff]">
                   {selectedCreature.name}
                 </h2>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-4 mt-2">
                   <span
-                    className={`text-2xl font-bold px-4 py-1 border-2 border-[#4a4a4a]/20 rounded-xl ${selectedCreature.accent} bg-white/40`}
+                    className={`text-2xl text-[#374151] font-bold px-4 border-[3px] border-[#374151] rounded-xl shadow-[2px_2px_0_#374151] rotate-[-2deg] flex items-center justify-center h-8 ${selectedCreature.accent.includes("bg") ? selectedCreature.accent : "bg-white"}`}
                   >
                     {selectedCreature.type}
                   </span>
-                  <span className="text-3xl text-[#4a4a4a]/40">
-                    No. {selectedCreature.id.toString().padStart(4, "0")}
+                  <span className="text-4xl font-black text-[#374151]/60">
+                    No. {selectedCreature.id.toString().padStart(3, "0")}
                   </span>
                 </div>
 
                 {/* 3D Model Display */}
-                <div className="relative w-full aspect-square shrink-0 bg-linear-to-b from-emerald-50/50 to-emerald-200/10 rounded-[2.5rem] border-2 border-dashed border-[#4a4a4a]/15 mb-6 flex items-center justify-center overflow-hidden">
+                <div className="relative w-full aspect-[4/3] shrink-0 bg-[#E5F6FD] rounded-[2rem] border-[4px] border-[#374151] shadow-[inset_0_4px_10px_rgba(0,0,0,0.1)] mb-6 flex items-center justify-center overflow-hidden">
+                  {/* Decorative background pattern */}
+                  <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#374151_2px,transparent_2px)] [background-size:16px_16px]"></div>
                   <Suspense
-                    fallback={
-                      <Loader2 className="w-8 h-8 animate-spin text-[#4a4a4a]" />
-                    }
+                    fallback={<Loader2 className="w-8 h-8 animate-spin text-[#374151]" />}
                   >
                     <Creature3D
                       key={selectedCreature.id}
                       modelUrl={selectedCreature.modelUrl}
-                      autoRotate={true}
+                      autoRotate={false}
+                      scale={(selectedCreature.scale || 1) * 2.2}
+                      position={selectedCreature.position || [0, 0, 0]}
                     />
                   </Suspense>
                 </div>
 
                 {/* Progression Stats */}
-                <div className="mb-6 px-2">
+                <div className="mb-6 px-1">
                   <div className="flex justify-between items-end mb-1">
-                    <span className="text-3xl text-[#2d2d2d]">
+                    <span className="text-4xl font-black text-[#374151]">
                       Level {selectedCreature.level}
                     </span>
-                    <span className="text-xl text-[#4a4a4a]/60">
+                    <span className="text-2xl text-[#374151] font-bold opacity-80 mt-2">
                       EXP {selectedCreature.exp}/100
                     </span>
                   </div>
-                  <div className="w-full h-4 bg-white/50 border-2 border-[#4a4a4a]/20 rounded-full overflow-hidden">
+                  <div className="w-full h-5 bg-white border-[3px] border-[#374151] rounded-full overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]">
                     <div
-                      className="h-full bg-[#4a4a4a]/40"
+                      className="h-full bg-[#4ADE80] border-r-[3px] border-[#374151]"
                       style={{ width: `${selectedCreature.exp}%` }}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <hr className="border-[#4a4a4a]/10 mb-4" />
-                  <div className="bg-white/30 p-4 border-l-4 border-[#4a4a4a] rounded-r-2xl italic shadow-sm">
-                    <p className="text-3xl text-[#4a4a4a] leading-tight">
+                  <div className="bg-white p-4 border-[3px] border-[#374151] rounded-2xl shadow-[4px_4px_0_#374151] relative">
+                    {/* Fake pin decoration */}
+                    <div className="absolute -top-3 left-4 w-4 h-4 rounded-full bg-red-500 border-2 border-[#374151] shadow-[1px_1px_0_#374151]"></div>
+                    <p className="text-3xl text-[#374151] leading-tight pt-2">
                       "{selectedCreature.description}"
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 mt-4 text-center">
-                    <div className="bg-[#4a4a4a]/10 p-3 rounded-2xl border border-[#4a4a4a]/5">
-                      <span className="block text-lg text-[#4a4a4a]/60 uppercase tracking-tighter">
-                        HABITAT
+                  <div className="grid grid-cols-2 gap-4 mt-6">
+                    <div className="bg-white p-3 rounded-2xl border-[3px] border-[#374151] shadow-[3px_3px_0_#374151] text-center flex flex-col justify-center">
+                      <span className="block text-xl text-[#374151] bg-[#FDE047] border-b-[3px] border-[#374151] -mx-3 -mt-3 mb-2 py-1 rounded-t-[10.5px] font-black uppercase tracking-widest">
+                        Habitat
                       </span>
-                      <span className="text-2xl text-[#2d2d2d] uppercase">
+                      <span className="text-[26px] text-[#374151] font-bold">
                         {selectedCreature.habitat}
                       </span>
                     </div>
-                    <div className="bg-[#4a4a4a]/10 p-3 rounded-2xl border border-[#4a4a4a]/5">
-                      <span className="block text-lg text-[#4a4a4a]/60 uppercase tracking-tighter">
-                        STATUS
+                    <div className="bg-white p-3 rounded-2xl border-[3px] border-[#374151] shadow-[3px_3px_0_#374151] text-center flex flex-col justify-center">
+                      <span className="block text-xl text-[#374151] bg-[#FCA5A5] border-b-[3px] border-[#374151] -mx-3 -mt-3 mb-2 py-1 rounded-t-[10.5px] font-black uppercase tracking-widest">
+                        Status
                       </span>
-                      <span className="text-2xl text-[#2d2d2d] uppercase">
+                      <span className="text-[26px] text-[#374151] font-bold">
                         {selectedCreature.status}
                       </span>
                     </div>

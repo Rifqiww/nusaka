@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react'
+import { useRef, useMemo, useLayoutEffect } from 'react'
 import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
@@ -123,29 +123,45 @@ function Trees() {
         return newMat;
     }, [treeMesh]);
 
+    // Time-sliced LOD (Level of Detail) & Culling computation
+    // Instead of looping 1500 trees per frame (which freezes mobile CPUs),
+    // we process only 100 trees at a time across multiple frames.
+    const BATCH_SIZE = 100;
+    const currentBatch = useRef(0);
+
     useFrame(() => {
         if (!meshRef.current || !treeMesh) return;
 
-        TREES_DATA.forEach((tree, i) => {
-            // Culling: Only render trees within a safe distance from the camera
-            // to save GPU overhead from processing too many shadows
-            const dist = camera.position.distanceTo(tree.position);
+        const maxTrees = TREES_DATA.length;
+        const start = currentBatch.current * BATCH_SIZE;
+        const end = Math.min(start + BATCH_SIZE, maxTrees);
 
-            if (dist < 180) { // Render radius
-                dummy.position.copy(tree.position);
-                dummy.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tree.normal);
-                dummy.rotateY(tree.rotationY);
+        for (let i = start; i < end; i++) {
+            const tree = TREES_DATA[i];
+            // Compute distance squared (faster than distanceTo which uses square root)
+            const distSq = camera.position.distanceToSquared(tree.position);
+
+            dummy.position.copy(tree.position);
+            dummy.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tree.normal);
+            dummy.rotateY(tree.rotationY);
+
+            // LOD / Culling: if further than 200 units away, swap detail to scale=0 (hide it)
+            // This drastically saves GPU triangle rendering times!
+            if (distSq < 200 * 200) {
                 dummy.scale.setScalar(tree.scale);
-                dummy.updateMatrix();
-                meshRef.current!.setMatrixAt(i, dummy.matrix);
             } else {
-                // Shrink to 0 so it's culled by the GPU entirely
                 dummy.scale.setScalar(0);
-                dummy.updateMatrix();
-                meshRef.current!.setMatrixAt(i, dummy.matrix);
             }
-        });
-        meshRef.current!.instanceMatrix.needsUpdate = true;
+
+            dummy.updateMatrix();
+            meshRef.current!.setMatrixAt(i, dummy.matrix);
+        }
+
+        // Only update the specific slice of instance memory that changed
+        meshRef.current.instanceMatrix.needsUpdate = true;
+
+        // Advance to next batch, loop back if we hit the end
+        currentBatch.current = (currentBatch.current + 1) % Math.ceil(maxTrees / BATCH_SIZE);
     });
 
     if (!treeMesh) return null;
@@ -153,7 +169,7 @@ function Trees() {
     return (
         <instancedMesh
             ref={meshRef}
-            args={[treeMesh.geometry, toonMaterial, TREE_COUNT]}
+            args={[treeMesh.geometry, toonMaterial, TREES_DATA.length]}
             castShadow
             receiveShadow
         />
@@ -226,7 +242,7 @@ export default function Planet() {
             </mesh>
             <Trees />
             {KOMODO_DATA.map((data, i) => (
-                <Animal key={`komodo-${i}`} path="/model/Komodo.glb" position={data.position.clone().addScaledVector(data.normal, 0)} normal={data.normal} rotationY={data.rotationY} scale={data.scale * 0.3} />
+                <Animal key={`komodo-${i}`} path="/model/komodo.glb" position={data.position.clone().addScaledVector(data.normal, 0)} normal={data.normal} rotationY={data.rotationY} scale={data.scale * 0.3} />
             ))}
             {ORANGUTAN_DATA.map((data, i) => (
                 <Animal key={`orangutan-${i}`} path="/model/OrangUtan.glb" position={data.position.clone().addScaledVector(data.normal, 0)} normal={data.normal} rotationY={data.rotationY} scale={data.scale * 0.6} />
@@ -239,6 +255,6 @@ export default function Planet() {
 }
 
 useGLTF.preload('/model/pohon.glb');
-useGLTF.preload('/model/Komodo.glb');
+useGLTF.preload('/model/komodo.glb');
 useGLTF.preload('/model/OrangUtan.glb');
 useGLTF.preload('/model/rajawali.glb');

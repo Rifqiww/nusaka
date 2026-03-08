@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
+import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF, useAnimations } from '@react-three/drei'
 import { SkeletonUtils } from 'three-stdlib'
 
@@ -46,6 +47,17 @@ export function Animal({ path, position, normal, rotationY, scale = 1 }: AnimalP
     }, [scene])
     const { ref, actions, names } = useAnimations(animations)
 
+    const groupRef = useRef<THREE.Group>(null)
+    const { camera } = useThree()
+
+    // LOD Computation: Hide animals when they are far away from the player camera
+    // This dramatically saves mobile GPU from evaluating rigged skeleton bounds and shadow maps.
+    useFrame(() => {
+        if (!groupRef.current) return;
+        const distSq = camera.position.distanceToSquared(position);
+        groupRef.current.visible = distSq < 150 * 150; // Render range threshold
+    });
+
     useEffect(() => {
         // Log available animations for debugging in the browser console
         if (names.length > 0 && Math.random() < 0.05) { // Log occasionally to avoid spam
@@ -71,7 +83,7 @@ export function Animal({ path, position, normal, rotationY, scale = 1 }: AnimalP
     }, [normal])
 
     return (
-        <group position={position} quaternion={quaternion}>
+        <group ref={groupRef} position={position} quaternion={quaternion}>
             <group rotation-y={rotationY} scale={scale}>
                 <primitive ref={ref} object={clone} />
             </group>

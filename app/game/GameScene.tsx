@@ -28,7 +28,7 @@ function SkyBox() {
 
 export default function GameScene() {
     return (
-        <Canvas shadows camera={{ position: [0, 30, 40], fov: 45 }} dpr={[1, 2]} gl={{ antialias: true }}>
+        <Canvas shadows camera={{ position: [0, 30, 40], fov: 45 }} dpr={[1, 1.2]} gl={{ antialias: false, powerPreference: "high-performance" }}>
             <Suspense fallback={null}>
                 {/* Lights */}
                 <ambientLight intensity={1.5} />

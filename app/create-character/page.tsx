@@ -10,6 +10,7 @@ import { auth, db } from '../../lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { useJoystickStore } from '../game/store'
+import { useTransitionStore } from '../store/transitionStore'
 import { Loader2 } from 'lucide-react'
 
 /* ── 3D: Rotatable Character ─────────────────────────────── */
@@ -71,6 +72,7 @@ function NasakaModel({ rotationY }: { rotationY: number }) {
 /* ── Page ─────────────────────────────────────────────────── */
 export default function CreateCharacter() {
     const router = useRouter()
+    const { startTransition } = useTransitionStore()
     const [characterName, setCharacterName] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [errorText, setErrorText] = useState('')
@@ -116,7 +118,7 @@ export default function CreateCharacter() {
             })
             useJoystickStore.getState().setPlayerProfile(userId, characterName, true)
             useJoystickStore.getState().setMenuState('playing')
-            router.push('/')
+            startTransition(() => router.push('/'))
         } catch {
             setErrorText('Gagal membuat karakter. Coba lagi.')
         } finally {
@@ -163,11 +165,11 @@ export default function CreateCharacter() {
 
                 <div>
                     {/* Nusaka Logo */}
-                    <div className="relative w-52 h-24 mb-4 drop-shadow-xl">
+                    <div className="relative w-62 h-34 mb-4">
                         <Image src="/Nusaka.svg" alt="Nusaka Logo" fill className="object-contain object-left" priority />
                     </div>
                     <h1
-                        className="text-6xl md:text-8xl text-white drop-shadow-[0_4px_6px_rgba(0,0,0,0.6)] leading-tight"
+                        className="text-6xl md:text-8xl text-white"
                     >
                         Siapa<br />namamu?
                     </h1>
@@ -195,7 +197,7 @@ export default function CreateCharacter() {
                     <div className="flex gap-4 mt-4">
                         <button
                             type="button"
-                            onClick={() => router.push('/')}
+                            onClick={() => startTransition(() => router.push('/'))}
                             className="text-white/70 text-3xl hover:text-white transition-colors"
                         >
                             ← Kembali

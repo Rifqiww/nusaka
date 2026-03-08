@@ -1,6 +1,5 @@
 import React from 'react';
 import Image from 'next/image';
-import { Plus } from 'lucide-react';
 
 interface PokemonCardProps {
   image?: string;
@@ -12,32 +11,41 @@ interface PokemonCardProps {
 const PokemonCard = ({ image, name, level, isEmpty }: PokemonCardProps) => {
   if (isEmpty || !name || !image || level === undefined) {
     return (
-      <div className="min-w-[250px] w-[250px] shrink-0 snap-center bg-white/20 border-2 border-dashed border-white/50 backdrop-blur-md rounded-[24px] p-6 h-[232px] flex flex-col items-center justify-center transition-all duration-500 hover:bg-white/30 hover:border-white hover:-translate-y-2 hover:shadow-[0_15px_30px_rgba(0,0,0,0.1)] group cursor-pointer">
-        <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mb-4 transition-all duration-500 group-hover:bg-white/40 group-hover:scale-110 drop-shadow">
-          <Plus className="w-8 h-8 text-[#17670f]/50 transition-colors duration-500 group-hover:text-[#17670f]" />
+      <div className="w-full bg-[#E5E7EB] border-[4px] border-[#9CA3AF] border-dashed rounded-[32px] p-2 h-24 flex items-center cursor-pointer hover:bg-[#D1D5DB] hover:border-solid transition-all group">
+        <div className="w-16 h-16 rounded-full border-[3px] border-[#9CA3AF] border-dashed flex items-center justify-center bg-[#E5E7EB] ml-2 group-hover:scale-110 transition-transform">
+          <span className="text-[#9CA3AF] text-3xl font-black">+</span>
         </div>
-        <span className="text-[#17670f]/70 font-bold text-2xl tracking-widest uppercase transition-colors duration-500 group-hover:text-[#17670f] drop-shadow">Kosong</span>
+        <span className="ml-4 text-[#9CA3AF] text-3xl uppercase font-black tracking-widest bg-[#F3F4F6] px-4 py-1 rounded-xl">Kosong</span>
       </div>
     );
   }
 
+  // Soft cartoon Pokemon Party slot look
   return (
-    <div className="min-w-[250px] w-[250px] shrink-0 snap-center bg-white/20 backdrop-blur-md rounded-[24px] p-6 transition-all duration-500 hover:scale-[1.03] hover:-translate-y-3 hover:shadow-[0_25px_50px_rgba(0,0,0,0.15)] hover:bg-white/40 flex flex-col items-center group relative overflow-hidden border border-white/40 cursor-pointer z-10 hover:z-20">
-      <div className="absolute -top-10 -right-10 w-28 h-28 bg-white rounded-full opacity-0 blur-2xl group-hover:opacity-30 group-hover:scale-150 transition-all duration-700 ease-out"></div>
-      <div className="relative w-28 h-28 mb-5 transform group-hover:scale-125 group-hover:drop-shadow-2xl transition-all duration-500 z-10 group-hover:-translate-y-2">
-        <Image
-          src={image}
-          alt={name}
-          fill
-          className="object-contain"
-        />
+    <div className="w-full bg-white border-[4px] border-[#374151] rounded-[32px] p-1 pr-6 flex items-center cursor-pointer hover:-translate-y-1 hover:bg-[#F3F4F6] transition-all relative overflow-hidden group">
+      {/* Sprite */}
+      <div className="w-20 h-20 bg-[#FCA5A5] border-[4px] border-[#374151] rounded-full shrink-0 flex items-center justify-center relative overflow-hidden ml-1 group-hover:scale-105 transition-transform">
+        <Image src={image} alt={name} fill className="object-contain p-2 drop-shadow-md" />
       </div>
-      
-      <div className="w-full flex flex-col items-center z-10 transition-transform duration-500 group-hover:translate-y-1">
-        <h3 className="text-[#17670f] font-black text-4xl mb-2 tracking-tight transition-colors duration-300 drop-shadow">{name}</h3>
-        <span className="bg-white/30 text-[#17670f] font-bold text-xl uppercase tracking-widest px-4 py-1.5 rounded-full border border-white/50 shadow-sm transition-all duration-300 group-hover:bg-[#17670f] group-hover:text-white group-hover:border-[#17670f] group-hover:shadow-md drop-shadow">
-          Lv. {level}
-        </span>
+
+      {/* Info */}
+      <div className="ml-5 flex-1 mt-1 text-[#374151]">
+        <div className="flex justify-between items-end mb-1">
+          <h3 className="text-2xl md:text-3xl font-black uppercase tracking-wide leading-none">{name}</h3>
+          <div className="flex items-center bg-[#FEF08A] px-3 py-1 pb-0 rounded-xl border-[3px] border-[#374151] rotate-[2deg] group-hover:rotate-0 transition-transform">
+            <span className="text-[#374151] text-xl font-black">Lv.{level}</span>
+          </div>
+        </div>
+        {/* Soft HP Bar */}
+        <div className="flex items-center gap-2 mt-2">
+          <div className="bg-[#374151] text-white text-xs font-black px-2 py-0.5 rounded-md border-[2px] border-[#374151] flex items-center h-full">HP</div>
+          <div className="flex-1 bg-[#374151] p-[4px] rounded-full mt-0 border-[2px] border-[#374151] relative">
+            <div className="absolute top-0 w-full h-1 bg-white/20 z-10 pointer-events-none rounded-full"></div>
+            <div className="w-full bg-white h-2 rounded-full overflow-hidden">
+              <div className="bg-[#4ADE80] w-[85%] h-full"></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

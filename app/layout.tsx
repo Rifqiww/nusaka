@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Nanum_Pen_Script } from "next/font/google";
 import "./globals.css";
+import GlobalAudio from "@/components/GlobalAudio";
+import GlobalTransition from "@/components/GlobalTransition";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,6 +35,8 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${nanumPen.variable} antialiased`}
       >
+        <GlobalAudio />
+        <GlobalTransition />
         {children}
       </body>
     </html>

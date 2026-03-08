@@ -15,15 +15,16 @@ interface PokemonGridProps {
 
 const PokemonGrid = ({ pokemons }: PokemonGridProps) => {
   return (
-    <div className="flex flex-row overflow-x-auto gap-6 pb-6 pt-2 snap-x snap-mandatory scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+    <div className="flex md:grid flex-row md:grid-cols-2 overflow-x-auto md:overflow-visible gap-4 md:gap-x-6 gap-y-4 pt-2 pb-4 md:pb-0 snap-x snap-mandatory hide-scroll">
       {pokemons.map((pokemon) => (
-        <PokemonCard
-          key={pokemon.id}
-          name={pokemon.name}
-          level={pokemon.level}
-          image={pokemon.image}
-          isEmpty={pokemon.isEmpty}
-        />
+        <div key={pokemon.id} className="min-w-[85vw] md:min-w-0 snap-center">
+          <PokemonCard
+            name={pokemon.name}
+            level={pokemon.level}
+            image={pokemon.image}
+            isEmpty={pokemon.isEmpty}
+          />
+        </div>
       ))}
     </div>
   );

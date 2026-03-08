@@ -6,17 +6,19 @@ import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { Joystick } from 'react-joystick-component'
 import { useJoystickStore } from './game/store'
+import { useTransitionStore } from './store/transitionStore'
 import { auth } from '../lib/firebase'
 import { signInAnonymously, onAuthStateChanged, User } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import { Loader2 } from 'lucide-react'
+import { Loader2, User as UserIcon } from 'lucide-react'
 
 const GameScene = dynamic(() => import('./game/GameScene'), { ssr: false })
 
 export default function Home() {
   const router = useRouter()
   const { hasSaveData, playerName, setPlayerProfile, menuState, setMenuState } = useJoystickStore()
+  const { startTransition } = useTransitionStore()
 
   // 1. Check Auth & Save Data on Mount
   useEffect(() => {
@@ -37,19 +39,23 @@ export default function Home() {
   }, [])
 
   const checkSaveData = async (user: User) => {
+    let hasSave = false
     try {
       const docRef = doc(db, 'players', user.uid)
       const docSnap = await getDoc(docRef)
       if (docSnap.exists()) {
         const data = docSnap.data()
         setPlayerProfile(user.uid, data.name, true)
+        hasSave = true
       } else {
         setPlayerProfile(user.uid, null, false)
       }
     } catch (error) {
       console.error('Firestore error:', error)
     } finally {
-      setTimeout(() => useJoystickStore.getState().setMenuState('main'), 800)
+      setTimeout(() => {
+        useJoystickStore.getState().setMenuState(hasSave ? 'playing' : 'main')
+      }, 800)
     }
   }
 
@@ -105,10 +111,10 @@ export default function Home() {
                   </button>
                 ) : (
                   <button
-                    onClick={() => router.push('/create-character')}
+                    onClick={() => startTransition(() => router.push('/create-character'))}
                     className="group flex flex-col items-center transition-all duration-300 hover:scale-110"
                   >
-                    <span style={{ fontFamily: 'var(--font-nanum-pen)' }} className="text-white text-6xl md:text-[5rem] drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] hover:text-blue-300 transition-colors">
+                    <span style={{ fontFamily: 'var(--font-nanum-pen)' }} className="text-white text-6xl md:text-[5rem]">
                       Buat karakter mu!
                     </span>
                   </button>
@@ -118,6 +124,22 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Profil Navigation Button HUD */}
+      <div
+        className={`absolute top-6 right-6 z-40 transition-opacity duration-1000
+          ${menuState === 'playing' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+      >
+        <button
+          onClick={() => startTransition(() => router.push('/profile'))}
+          className="bg-[#FEF08A] text-[#374151] border-[4px] border-[#374151] rounded-[20px] px-6 py-3 flex items-center justify-center hover:bg-[#FDE047] transition-colors shadow-[0_4px_0_#374151] active:translate-y-1 active:shadow-none"
+        >
+          <UserIcon className="w-8 h-8 mr-3" strokeWidth={3} />
+          <span style={{ fontFamily: 'var(--font-nanum-pen)' }} className="text-4xl font-black mt-2">
+            Profil
+          </span>
+        </button>
+      </div>
 
       {/* Mobile Joystick */}
       <div

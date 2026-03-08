@@ -22,15 +22,15 @@ export default function GlobalTransition() {
     }, [pathname, prevPath, isRouting, finishTransition]);
 
     // When isActive is true -> hole shrinks to 0 (closing black screen)
-    // When isActive is false -> hole grows to 200vw (opening to show game)
-    const irisSize = isActive ? '0vw' : '200vw';
+    // When isActive is false -> hole grows to 300vmax (opening to show game entirely)
+    const irisSize = isActive ? '0vmax' : '300vmax';
 
     return (
         <div className="fixed inset-0 z-[99999] pointer-events-none flex items-center justify-center overflow-hidden">
             <div
                 className="rounded-full absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transition-all duration-[600ms] ease-in-out"
                 style={{
-                    boxShadow: '0 0 0 150vw #111827',
+                    boxShadow: '0 0 0 200vmax #111827',
                     width: irisSize,
                     height: irisSize
                 }}

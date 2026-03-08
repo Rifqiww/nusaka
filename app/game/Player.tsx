@@ -226,6 +226,22 @@ export default function Player() {
     // Target rotation for smooth turning
     const targetRotation = useRef(new THREE.Quaternion())
 
+    // Walking SFX setup
+    const audioRefs = useRef<{ walk1: HTMLAudioElement, walk2: HTMLAudioElement } | null>(null);
+    useEffect(() => {
+        audioRefs.current = {
+            walk1: new Audio('/sfx/walk1.mp3'),
+            walk2: new Audio('/sfx/walk2.mp3')
+        };
+        // Soft volume for footsteps
+        if (audioRefs.current) {
+            audioRefs.current.walk1.volume = 0.4;
+            audioRefs.current.walk2.volume = 0.4;
+        }
+    }, []);
+    const walkTimer = useRef(0);
+    const stepToggle = useRef(false);
+
     // Handle keyboard
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -356,6 +372,23 @@ export default function Player() {
         const combinedRight = movement.right + joystick.right;
 
         const isMoving = combinedForward !== 0 || combinedRight !== 0;
+
+        // --- Walking SFX ---
+        if (isMoving && menuState === 'playing') {
+            walkTimer.current += delta;
+            // Play a footstep every 0.35s while moving Fast step pace
+            if (walkTimer.current > 0.35) {
+                walkTimer.current = 0;
+                if (audioRefs.current) {
+                    const stepAudio = stepToggle.current ? audioRefs.current.walk1 : audioRefs.current.walk2;
+                    stepToggle.current = !stepToggle.current;
+                    stepAudio.currentTime = 0;
+                    stepAudio.play().catch(() => { }); // Catch autoplay restrictions gracefully
+                }
+            }
+        } else {
+            walkTimer.current = 0; // Reset step timing when stopping
+        }
 
         // 1. Calculate input direction relative to the camera
         // Camera's forward vector projected onto the tangent plane of the sphere at player's position

@@ -47,4 +47,14 @@ body {
 .phone-vibrate {
   display: inline-block;
   animation: phone-ring 2s ease-in-out infinite;
+/* Hide scrollbar for HewanFlex mobile layout */
+.hide-scroll {
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+.hide-scroll::-webkit-scrollbar {
+  display: none;
 }

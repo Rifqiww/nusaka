@@ -24,3 +24,27 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes phone-ring {
+  0% { transform: translateX(0); }
+  5% { transform: translateX(-8px) rotate(-2deg); }
+  10% { transform: translateX(8px) rotate(2deg); }
+  15% { transform: translateX(-4px) rotate(-2deg); }
+  20% { transform: translateX(4px) rotate(2deg); }
+  25% { transform: translateX(-4px) rotate(-2deg); }
+  30% { transform: translateX(0); }
+  40% { transform: translateX(0); }
+  50% { transform: translateX(0); }
+  60% { transform: translateX(0); }
+  70% { transform: translateX(0); }
+  75% { transform: translateX(-8px) rotate(-2deg); }
+  80% { transform: translateX(8px) rotate(2deg); }
+  85% { transform: translateX(-4px) rotate(-2deg); }
+  90% { transform: translateX(4px) rotate(2deg); }
+  100% { transform: translateX(0); }
+}
+
+.phone-vibrate {
+  display: inline-block;
+  animation: phone-ring 2s ease-in-out infinite;
+}

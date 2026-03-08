@@ -11,12 +11,17 @@ import { auth } from '../lib/firebase'
 import { signInAnonymously, onAuthStateChanged, User } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
+import { Loader2 } from 'lucide-react'
+import { useNotifStore } from "./nusadex/notifStore";
+import NusadexPopup from "./nusadex/NusadexPopup";
 import { Loader2, User as UserIcon } from 'lucide-react'
 
 const GameScene = dynamic(() => import('./game/GameScene'), { ssr: false })
 
 export default function Home() {
   const router = useRouter()
+  const { hasSaveData, playerName, setPlayerProfile, menuState, setMenuState, setNusadexOpen } = useJoystickStore()
+  const { hasNewNotif } = useNotifStore();
   const { hasSaveData, playerName, setPlayerProfile, menuState, setMenuState } = useJoystickStore()
   const { startTransition } = useTransitionStore()
 
@@ -77,7 +82,6 @@ export default function Home() {
       {/* Main Menu UI Overlay */}
       {menuState !== 'playing' && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none bg-transparent backdrop-blur-[6px]">
-
           <div className="pointer-events-auto w-full flex flex-col items-center justify-center h-full">
             {/* LOGO */}
             <div className="relative w-80 h-36 md:w-[400px] md:h-48 drop-shadow-2xl transition-transform hover:scale-105 duration-300 mb-4">
@@ -155,6 +159,30 @@ export default function Home() {
           stop={handleJoystickStop}
         />
       </div>
+      {/* Nusadex Icon */}
+      {menuState === "playing" && (
+        <div
+          onClick={() => setNusadexOpen(true)}
+          className="absolute top-6 right-6 z-40 transition-transform duration-300 hover:scale-110 cursor-pointer"
+        >
+          <div className={`relative w-24 h-24 md:w-32 md:h-32 drop-shadow-xl`}>
+            <Image
+              src="/nusadex/nusadex-beta.png"
+              alt="Nusadex"
+              fill
+              className={`object-contain ${hasNewNotif ? "phone-vibrate" : ""}`}
+              priority
+            />
+            {/* Notification Dot */}
+            {hasNewNotif && (
+              <div className="absolute top-[-6px] right-[10px] w-4 h-4 md:w-5 md:h-5 bg-red-600 rounded-full border-2 border-white shadow-lg animate-pulse" />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Nusadex Popup */}
+      <NusadexPopup />
     </div>
-  )
+  );
 }

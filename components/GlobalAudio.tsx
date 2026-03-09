@@ -4,9 +4,19 @@ import { useEffect, useRef } from 'react';
 import { useJoystickStore } from '@/app/game/store';
 
 export default function GlobalAudio() {
-    const { menuState } = useJoystickStore();
+    const { menuState, isAudioMuted } = useJoystickStore();
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const currentBgmIndex = useRef(0);
+
+    // Sync paused state when muted changes
+    useEffect(() => {
+        if (!audioRef.current) return;
+        if (isAudioMuted || menuState !== 'playing') {
+            audioRef.current.pause();
+        } else {
+            audioRef.current.play().catch(() => { });
+        }
+    }, [isAudioMuted, menuState]);
 
     useEffect(() => {
         // Stop if not playing or creating character
@@ -27,12 +37,16 @@ export default function GlobalAudio() {
             const playNext = () => {
                 currentBgmIndex.current = (currentBgmIndex.current + 1) % bgmList.length;
                 audio.src = bgmList[currentBgmIndex.current];
-                audio.play().catch(e => console.warn('BGM playNext blocked:', e));
+                if (!useJoystickStore.getState().isAudioMuted) {
+                    audio.play().catch(e => console.warn('BGM playNext blocked:', e));
+                }
             };
 
             audio.addEventListener('ended', playNext);
 
             const tryPlay = () => {
+                if (useJoystickStore.getState().isAudioMuted) return;
+                
                 audio.play().then(() => {
                     window.removeEventListener('click', tryPlay);
                     window.removeEventListener('keydown', tryPlay);
@@ -44,8 +58,8 @@ export default function GlobalAudio() {
                 });
             };
             tryPlay();
-        } else {
-            // If it exists, make sure it continues playing
+        } else if (!isAudioMuted) {
+            // If it exists, make sure it continues playing if not muted
             audioRef.current.play().catch(() => { });
         }
     }, [menuState]);

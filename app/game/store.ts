@@ -23,6 +23,9 @@ interface JoystickState {
 
   isNusadexOpen: boolean;
   setNusadexOpen: (isOpen: boolean) => void;
+
+  isAudioMuted: boolean;
+  setAudioMuted: (isMuted: boolean) => void;
 }
 
 export const useJoystickStore = create<JoystickState>((set) => ({
@@ -45,4 +48,7 @@ export const useJoystickStore = create<JoystickState>((set) => ({
 
   isNusadexOpen: false,
   setNusadexOpen: (isOpen: boolean) => set({ isNusadexOpen: isOpen }),
+
+  isAudioMuted: false,
+  setAudioMuted: (isMuted) => set({ isAudioMuted: isMuted }),
 }));

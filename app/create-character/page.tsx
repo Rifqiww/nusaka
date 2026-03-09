@@ -117,8 +117,7 @@ export default function CreateCharacter() {
                 position: { x: 0, y: 11, z: 0 },
             })
             useJoystickStore.getState().setPlayerProfile(userId, characterName, true)
-            useJoystickStore.getState().setMenuState('playing')
-            startTransition(() => router.push('/'))
+            startTransition(() => router.push('/choose-partner'))
         } catch {
             setErrorText('Gagal membuat karakter. Coba lagi.')
         } finally {

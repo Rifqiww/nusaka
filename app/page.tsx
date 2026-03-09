@@ -11,9 +11,12 @@ import { auth } from '../lib/firebase'
 import { signInAnonymously, onAuthStateChanged, User } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import { Loader2, User as UserIcon, Volume2, VolumeX } from 'lucide-react'
+import { Loader2, User as UserIcon, Sword, Volume2, VolumeX } from 'lucide-react'
 import { useNotifStore } from "./nusadex/notifStore";
 import NusadexPopup from "./nusadex/NusadexPopup";
+import { useBattleStore } from './game/battleStore';
+import { useCreatureStore } from './nusadex/store';
+import BattleUI from './game/BattleUI';
 
 const GameScene = dynamic(() => import('./game/GameScene'), { ssr: false })
 
@@ -22,6 +25,21 @@ export default function Home() {
   const { hasSaveData, playerName, setPlayerProfile, menuState, setMenuState, setNusadexOpen, isAudioMuted, setAudioMuted } = useJoystickStore()
   const { hasNewNotif } = useNotifStore();
   const { startTransition } = useTransitionStore()
+
+  const { nearbyCreature, startBattle } = useBattleStore();
+  const { firstPartner } = useCreatureStore();
+
+  // Handle keyboard Interaction "E"
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'KeyE' && menuState === 'playing' && nearbyCreature && firstPartner) {
+        startBattle(nearbyCreature, firstPartner);
+        setMenuState('battle');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [menuState, nearbyCreature, firstPartner, startBattle, setMenuState]);
 
   // 1. Check Auth & Save Data on Mount
   useEffect(() => {
@@ -175,7 +193,6 @@ export default function Home() {
         )}
       </div>
 
-      {/* Mobile Joystick */}
       <div
         className={`absolute bottom-10 left-1/2 -translate-x-1/2 z-40 transition-opacity duration-1000 md:hidden
           ${menuState === 'playing' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
@@ -189,6 +206,28 @@ export default function Home() {
           stop={handleJoystickStop}
         />
       </div>
+
+      {/* Interaction Prompt (E to Battle) */}
+      {menuState === 'playing' && nearbyCreature && firstPartner && (
+        <div className="absolute bottom-32 md:bottom-12 left-1/2 -translate-x-1/2 z-40 pointer-events-auto animate-bounce">
+          <button
+            onClick={() => {
+              startBattle(nearbyCreature, firstPartner);
+              setMenuState('battle');
+            }}
+            className="flex items-center justify-center gap-3 bg-[#FEF08A] hover:bg-[#FDE047] border-[4px] border-[#374151] px-6 py-3 md:px-8 md:py-4 rounded-[32px] shadow-[4px_4px_0_#374151] hover:-translate-y-1 transition-transform"
+          >
+            <Sword className="w-8 h-8 text-[#374151]" strokeWidth={2.5} />
+            <div className="flex flex-col items-start leading-none text-[#374151]" style={{ fontFamily: 'var(--font-nanum-pen)' }}>
+              <span className="text-2xl md:text-3xl font-black">Lawan {nearbyCreature.name}!</span>
+              <span className="text-sm md:text-base font-bold text-[#374151]/70 tracking-widest uppercase">Tekan "E" atau Tap</span>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* Battle UI Overlay */}
+      {menuState === 'battle' && <BattleUI />}
 
       {/* Nusadex Popup */}
       <NusadexPopup />

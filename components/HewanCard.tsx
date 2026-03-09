@@ -1,50 +1,109 @@
+'use client'
+
 import React from 'react';
-import Image from 'next/image';
+import { Wind, Leaf, Droplets, Sparkles, Star, PawPrint, Circle } from 'lucide-react';
 
 interface PokemonCardProps {
-  image?: string;
   name?: string;
   level?: number;
+  exp?: number;
+  element?: string;
+  creatureType?: string;
+  image?: string;
   isEmpty?: boolean;
 }
 
-const PokemonCard = ({ image, name, level, isEmpty }: PokemonCardProps) => {
-  if (isEmpty || !name || !image || level === undefined) {
+const elementBg: Record<string, string> = {
+  Angin: 'bg-[#BAE6FD]',
+  Tanah: 'bg-[#D9F5D0]',
+  Air: 'bg-[#BFDBFE]',
+};
+
+const ElementIcon = ({ element, className }: { element?: string; className?: string }) => {
+  if (element === 'Angin') return <Wind className={className} strokeWidth={2.5} />;
+  if (element === 'Tanah') return <Leaf className={className} strokeWidth={2.5} />;
+  if (element === 'Air') return <Droplets className={className} strokeWidth={2.5} />;
+  return <PawPrint className={className} strokeWidth={2.5} />;
+};
+
+const PokemonCard = ({ name, level = 0, exp = 0, element, creatureType, image, isEmpty }: PokemonCardProps) => {
+  // Empty slot (Match Image Visual)
+  if (isEmpty || !name) {
     return (
-      <div className="w-full bg-[#E5E7EB] border-[4px] border-[#9CA3AF] border-dashed rounded-[32px] p-2 h-24 flex items-center cursor-pointer hover:bg-[#D1D5DB] hover:border-solid transition-all group">
-        <div className="w-16 h-16 rounded-full border-[3px] border-[#9CA3AF] border-dashed flex items-center justify-center bg-[#E5E7EB] ml-2 group-hover:scale-110 transition-transform">
+      <div className="w-[300px] bg-[#E5E7EB] border-[3px] border-[#9CA3AF] border-dashed rounded-[32px] p-2 flex items-center cursor-pointer hover:bg-[#D1D5DB] transition-all group shrink-0">
+        <div className="w-[72px] h-[72px] rounded-full border-[3px] border-[#9CA3AF] border-dashed flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
           <span className="text-[#9CA3AF] text-3xl font-black">+</span>
         </div>
-        <span className="ml-4 text-[#9CA3AF] text-3xl uppercase font-black tracking-widest bg-[#F3F4F6] px-4 py-1 rounded-xl">Kosong</span>
+        <div className="ml-4 bg-white/70 px-4 py-1.5 rounded-xl flex items-center justify-center">
+          <span className="text-[#9CA3AF] text-lg uppercase font-black tracking-widest leading-none mt-1">
+            Kosong
+          </span>
+        </div>
       </div>
     );
   }
 
-  // Soft cartoon Pokemon Party slot look
+  const bgClass = elementBg[element || ''] || 'bg-[#FCA5A5]';
+  const expPercent = Math.min(100, exp);
+
   return (
-    <div className="w-full bg-white border-[4px] border-[#374151] rounded-[32px] p-1 pr-6 flex items-center cursor-pointer hover:-translate-y-1 hover:bg-[#F3F4F6] transition-all relative overflow-hidden group">
-      {/* Sprite */}
-      <div className="w-20 h-20 bg-[#FCA5A5] border-[4px] border-[#374151] rounded-full shrink-0 flex items-center justify-center relative overflow-hidden ml-1 group-hover:scale-105 transition-transform">
-        <Image src={image} alt={name} fill className="object-contain p-2 drop-shadow-md" />
+    <div className="w-[340px] bg-white border-[4px] border-[#374151] rounded-[32px] p-2 pr-5 flex items-center cursor-pointer hover:-translate-y-1 hover:shadow-sm transition-all relative group shrink-0">
+
+      {/* Sprite / Icon area */}
+      <div className={`w-[72px] h-[72px] ${bgClass} border-[3px] border-[#374151] rounded-full shrink-0 flex items-center justify-center relative overflow-hidden group-hover:scale-105 transition-transform`}>
+        {image ? (
+          <img src={image} alt={name} className="object-contain p-2 drop-shadow-md w-full h-full" />
+        ) : (
+          <ElementIcon element={element} className="w-8 h-8 text-[#374151]" />
+        )}
       </div>
 
       {/* Info */}
-      <div className="ml-5 flex-1 mt-1 text-[#374151]">
-        <div className="flex justify-between items-end mb-1">
-          <h3 className="text-2xl md:text-3xl font-black uppercase tracking-wide leading-none">{name}</h3>
-          <div className="flex items-center bg-[#FEF08A] px-3 py-1 pb-0 rounded-xl border-[3px] border-[#374151] rotate-[2deg] group-hover:rotate-0 transition-transform">
-            <span className="text-[#374151] text-xl font-black">Lv.{level}</span>
+      <div className="ml-4 flex-1 flex flex-col justify-center">
+        {/* Row 1: Name & Level */}
+        <div className="flex justify-between items-center mb-1">
+          <h3 className="text-xl md:text-2xl font-black uppercase text-[#374151] leading-none mt-1 max-w-[120px] truncate">
+            {name}
+          </h3>
+          <div className="flex items-center bg-[#FEF08A] px-2 py-0.5 rounded-xl border-[2.5px] border-[#374151] gap-1 -mt-1 shadow-sm">
+            <Star className="w-3 h-3 text-[#374151]" fill="currentColor" />
+            <span className="text-[#374151] text-xs font-black tracking-widest leading-none mt-0.5">LV.{level}</span>
           </div>
         </div>
-        {/* Soft HP Bar */}
-        <div className="flex items-center gap-2 mt-2">
-          <div className="bg-[#374151] text-white text-xs font-black px-2 py-0.5 rounded-md border-[2px] border-[#374151] flex items-center h-full">HP</div>
-          <div className="flex-1 bg-[#374151] p-[4px] rounded-full mt-0 border-[2px] border-[#374151] relative">
-            <div className="absolute top-0 w-full h-1 bg-white/20 z-10 pointer-events-none rounded-full"></div>
-            <div className="w-full bg-white h-2 rounded-full overflow-hidden">
-              <div className="bg-[#4ADE80] w-[85%] h-full"></div>
+
+        {/* Row 2: Type tag */}
+        {(element || creatureType) && (
+          <div className="flex items-center gap-1.5 mb-2.5">
+            {element && (
+              <span className="flex items-center gap-1 text-[11px] font-bold text-[#6B7280]">
+                <ElementIcon element={element} className="w-3.5 h-3.5" />
+                {element}
+              </span>
+            )}
+            {element && creatureType && (
+              <Circle className="w-[5px] h-[5px] text-[#9CA3AF]" strokeWidth={3} />
+            )}
+            {creatureType && (
+              <span className="flex items-center gap-1 text-[11px] font-bold text-[#6B7280]">
+                {creatureType}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Row 3: EXP Bar */}
+        <div className="flex items-center w-full">
+          <div className="bg-[#374151] text-white text-[9px] font-black px-1.5 py-[2px] rounded border-[1.5px] border-[#374151] leading-none shrink-0 tracking-wider">
+            EXP
+          </div>
+          <div className="flex-1 h-3 bg-white border-[2.5px] border-[#374151] rounded-full mx-2 overflow-hidden relative">
+            <div className="w-full bg-white h-full relative">
+              <div className="bg-[#4ADE80] h-full transition-all" style={{ width: `${expPercent}%` }} />
             </div>
           </div>
+          <span className="text-[10px] font-bold text-[#6B7280] leading-none mt-0.5 shrink-0">
+            {exp}/100
+          </span>
         </div>
       </div>
     </div>

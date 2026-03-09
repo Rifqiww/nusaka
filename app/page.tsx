@@ -11,7 +11,7 @@ import { auth } from '../lib/firebase'
 import { signInAnonymously, onAuthStateChanged, User } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import { Loader2, User as UserIcon } from 'lucide-react'
+import { Loader2, User as UserIcon, Volume2, VolumeX } from 'lucide-react'
 import { useNotifStore } from "./nusadex/notifStore";
 import NusadexPopup from "./nusadex/NusadexPopup";
 
@@ -19,7 +19,7 @@ const GameScene = dynamic(() => import('./game/GameScene'), { ssr: false })
 
 export default function Home() {
   const router = useRouter()
-  const { hasSaveData, playerName, setPlayerProfile, menuState, setMenuState, setNusadexOpen } = useJoystickStore()
+  const { hasSaveData, playerName, setPlayerProfile, menuState, setMenuState, setNusadexOpen, isAudioMuted, setAudioMuted } = useJoystickStore()
   const { hasNewNotif } = useNotifStore();
   const { startTransition } = useTransitionStore()
 
@@ -132,6 +132,14 @@ export default function Home() {
         className={`absolute top-6 right-0 md:top-8 md:right-4 z-40 flex flex-col items-end gap-2 md:gap-4 transition-all duration-1000
           ${menuState === 'playing' ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-10 pointer-events-none'}`}
       >
+        {/* Audio Toggle */}
+        <button
+          onClick={() => setAudioMuted(!isAudioMuted)}
+          className="w-10 h-10 md:w-12 md:h-12 bg-white/20 backdrop-blur-md border border-white/30 rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-all hover:scale-110 mr-6 md:mr-8 "
+        >
+          {isAudioMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+        </button>
+
         {/* ID Card */}
         <button
           onClick={() => startTransition(() => router.push('/profile'))}

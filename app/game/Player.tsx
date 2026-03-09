@@ -217,7 +217,7 @@ export default function Player() {
 
     // Movement state
     const [movement, setMovement] = useState({ forward: 0, right: 0 })
-    const { forward: jF, right: jR, menuState } = useJoystickStore()
+    const { forward: jF, right: jR, menuState, isAudioMuted } = useJoystickStore()
 
     // Track player position on sphere
     const playerPosition = useRef(new THREE.Vector3(0, PLANET_RADIUS, 0))

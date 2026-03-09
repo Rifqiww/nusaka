@@ -17,6 +17,7 @@ import NusadexPopup from "./nusadex/NusadexPopup";
 import { useBattleStore } from './game/battleStore';
 import { useCreatureStore } from './nusadex/store';
 import BattleUI from './game/BattleUI';
+import AudioPlayerControl from '../components/AudioPlayerControl';
 
 const GameScene = dynamic(() => import('./game/GameScene'), { ssr: false })
 
@@ -151,12 +152,7 @@ export default function Home() {
           ${menuState === 'playing' ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 translate-x-10 pointer-events-none'}`}
       >
         {/* Audio Toggle */}
-        <button
-          onClick={() => setAudioMuted(!isAudioMuted)}
-          className="w-10 h-10 md:w-12 md:h-12 bg-white/20 backdrop-blur-md border border-white/30 rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-all hover:scale-110 mr-6 md:mr-8 "
-        >
-          {isAudioMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-        </button>
+        <AudioPlayerControl />
 
         {/* ID Card */}
         <button

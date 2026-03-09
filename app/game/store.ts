@@ -26,6 +26,9 @@ interface JoystickState {
 
   isAudioMuted: boolean;
   setAudioMuted: (isMuted: boolean) => void;
+
+  audioVolume: number;
+  setAudioVolume: (volume: number) => void;
 }
 
 export const useJoystickStore = create<JoystickState>((set) => ({
@@ -51,4 +54,7 @@ export const useJoystickStore = create<JoystickState>((set) => ({
 
   isAudioMuted: false,
   setAudioMuted: (isMuted) => set({ isAudioMuted: isMuted }),
+
+  audioVolume: 0.4,
+  setAudioVolume: (volume) => set({ audioVolume: volume }),
 }));

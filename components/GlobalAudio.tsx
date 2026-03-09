@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useJoystickStore } from '@/app/game/store';
 
 export default function GlobalAudio() {
-    const { menuState, isAudioMuted } = useJoystickStore();
+    const { menuState, isAudioMuted, audioVolume } = useJoystickStore();
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const currentBgmIndex = useRef(0);
 
@@ -16,7 +16,8 @@ export default function GlobalAudio() {
         } else {
             audioRef.current.play().catch(() => { });
         }
-    }, [isAudioMuted, menuState]);
+        audioRef.current.volume = isAudioMuted ? 0 : audioVolume;
+    }, [isAudioMuted, menuState, audioVolume]);
 
     useEffect(() => {
         // Stop if not playing or creating character
@@ -31,7 +32,7 @@ export default function GlobalAudio() {
         if (!audioRef.current) {
             const bgmList = ['/sfx/bgm1.mp3', '/sfx/bgm2.mp3'];
             const audio = new Audio(bgmList[currentBgmIndex.current]);
-            audio.volume = 0.4;
+            audio.volume = useJoystickStore.getState().isAudioMuted ? 0 : useJoystickStore.getState().audioVolume;
             audioRef.current = audio;
 
             const playNext = () => {
@@ -46,7 +47,7 @@ export default function GlobalAudio() {
 
             const tryPlay = () => {
                 if (useJoystickStore.getState().isAudioMuted) return;
-                
+
                 audio.play().then(() => {
                     window.removeEventListener('click', tryPlay);
                     window.removeEventListener('keydown', tryPlay);

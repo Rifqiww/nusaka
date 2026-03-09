@@ -16,9 +16,9 @@ interface JoystickState {
   ) => void;
 
   // UI State
-  menuState: "checking" | "main" | "create_character" | "playing";
+  menuState: "checking" | "main" | "create_character" | "playing" | "battle";
   setMenuState: (
-    state: "checking" | "main" | "create_character" | "playing",
+    state: "checking" | "main" | "create_character" | "playing" | "battle",
   ) => void;
 
   isNusadexOpen: boolean;
@@ -40,7 +40,7 @@ export const useJoystickStore = create<JoystickState>((set) => ({
   ) => set({ playerId: id, playerName: name, hasSaveData: hasSave }),
 
   menuState: "checking",
-  setMenuState: (state: "checking" | "main" | "create_character" | "playing") =>
+  setMenuState: (state: "checking" | "main" | "create_character" | "playing" | "battle") =>
     set({ menuState: state }),
 
   isNusadexOpen: false,

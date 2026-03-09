@@ -185,9 +185,10 @@ export default function NusadexPopup() {
                 </h2>
                 <div className="flex items-center justify-between mb-4 mt-2">
                   <span
-                    className={`text-2xl text-[#374151] font-bold px-4 border-[3px] border-[#374151] rounded-xl shadow-[2px_2px_0_#374151] rotate-[-2deg] flex items-center justify-center h-8 ${selectedCreature.accent.includes("bg") ? selectedCreature.accent : "bg-white"}`}
+                    className={`text-2xl text-[#374151] font-bold px-4 border-[3px] border-[#374151] rounded-xl shadow-[2px_2px_0_#374151] rotate-[-2deg] flex items-center justify-center gap-2 h-8 ${selectedCreature.element === 'Tanah' ? 'bg-[#D97706]/20' : selectedCreature.element === 'Angin' ? 'bg-[#93C5FD]/20' : 'bg-[#3B82F6]/20'}`}
                   >
-                    {selectedCreature.type}
+                    <span className="opacity-60 text-lg uppercase">Elemen:</span>
+                    {selectedCreature.element}
                   </span>
                   <span className="text-4xl font-black text-[#374151]/60">
                     No. {selectedCreature.id.toString().padStart(3, "0")}
@@ -239,21 +240,30 @@ export default function NusadexPopup() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 mt-6">
-                    <div className="bg-white p-3 rounded-2xl border-[3px] border-[#374151] shadow-[3px_3px_0_#374151] text-center flex flex-col justify-center">
-                      <span className="block text-xl text-[#374151] bg-[#FDE047] border-b-[3px] border-[#374151] -mx-3 -mt-3 mb-2 py-1 rounded-t-[10.5px] font-black uppercase tracking-widest">
-                        Habitat
-                      </span>
-                      <span className="text-[26px] text-[#374151] font-bold">
-                        {selectedCreature.habitat}
-                      </span>
+                    <div className="bg-white rounded-2xl border-[3px] border-[#374151] shadow-[4px_4px_0_#374151] overflow-hidden flex flex-col">
+                      <div className="bg-[#FDE047] border-b-[3px] border-[#374151] py-2 text-center">
+                        <span className="text-xl text-[#374151] font-black uppercase tracking-[0.2em]">
+                          Habitat
+                        </span>
+                      </div>
+                      <div className="flex-1 flex items-center justify-center p-3 min-h-[70px]">
+                        <span className="text-[26px] text-[#374151] font-bold leading-tight text-center">
+                          {selectedCreature.habitat}
+                        </span>
+                      </div>
                     </div>
-                    <div className="bg-white p-3 rounded-2xl border-[3px] border-[#374151] shadow-[3px_3px_0_#374151] text-center flex flex-col justify-center">
-                      <span className="block text-xl text-[#374151] bg-[#FCA5A5] border-b-[3px] border-[#374151] -mx-3 -mt-3 mb-2 py-1 rounded-t-[10.5px] font-black uppercase tracking-widest">
-                        Status
-                      </span>
-                      <span className="text-[26px] text-[#374151] font-bold">
-                        {selectedCreature.status}
-                      </span>
+
+                    <div className="bg-white rounded-2xl border-[3px] border-[#374151] shadow-[4px_4px_0_#374151] overflow-hidden flex flex-col">
+                      <div className="bg-[#FCA5A5] border-b-[3px] border-[#374151] py-2 text-center">
+                        <span className="text-xl text-[#374151] font-black uppercase tracking-[0.2em]">
+                          Status
+                        </span>
+                      </div>
+                      <div className="flex-1 flex items-center justify-center p-3 min-h-[70px]">
+                        <span className="text-[26px] text-[#374151] font-bold leading-tight text-center">
+                          {selectedCreature.status}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>

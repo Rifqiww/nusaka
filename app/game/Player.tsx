@@ -4,6 +4,8 @@ import { useGLTF, useAnimations, Hud, OrthographicCamera } from '@react-three/dr
 import * as THREE from 'three'
 import { PLANET_RADIUS, TREES_DATA, KOMODO_DATA, ORANGUTAN_DATA, RAJAWALI_DATA } from './Planet'
 import { useJoystickStore } from './store'
+import { useBattleStore } from './battleStore'
+import { NUSA_CREATURES } from '../nusadex/creatures'
 
 function MinimapGlobe({ playerPosition }: { playerPosition: React.MutableRefObject<THREE.Vector3> }) {
     const globeRef = useRef<THREE.Mesh>(null)
@@ -412,11 +414,14 @@ export default function Player() {
 
             // Check collisions against a unified list of solid objects
             const colliders = [
-                ...TREES_DATA.map(t => ({ pos: t.position, radius: t.scale * 0.8 })),
-                ...KOMODO_DATA.map(k => ({ pos: k.position, radius: 2.5 })), // Reduced Komodo
-                ...ORANGUTAN_DATA.map(o => ({ pos: o.position, radius: 2.5 })), // Reduced OrangUtan
-                ...RAJAWALI_DATA.map(r => ({ pos: r.position, radius: 1.5 })) // Reduced Rajawali heavily
+                ...TREES_DATA.map(t => ({ pos: t.position, radius: t.scale * 0.8, type: 'tree', id: null })),
+                ...KOMODO_DATA.map(k => ({ pos: k.position, radius: 2.5, type: 'animal', id: 2 })), // ID 2 is Komodo
+                ...ORANGUTAN_DATA.map(o => ({ pos: o.position, radius: 2.5, type: 'animal', id: 3 })), // ID 3 is OrangUtan
+                ...RAJAWALI_DATA.map(r => ({ pos: r.position, radius: 1.5, type: 'animal', id: 1 })) // ID 1 is Elang
             ];
+
+            let closestAnimalId: number | null = null;
+            let closestDistSq = Infinity;
 
             for (let i = 0; i < colliders.length; i++) {
                 const col = colliders[i];
@@ -425,12 +430,30 @@ export default function Player() {
                 const p2 = col.pos.clone().normalize();
                 const distSq = p1.distanceToSquared(p2) * PLANET_RADIUS * PLANET_RADIUS;
 
+                // Track closest animal for battle
+                if (col.type === 'animal' && distSq < 15 * 15 && distSq < closestDistSq) {
+                    closestDistSq = distSq;
+                    closestAnimalId = col.id;
+                }
+
                 if (distSq < col.radius * col.radius) {
                     const slideDir = nextPos.clone().sub(col.pos).normalize();
                     nextPos.addScaledVector(slideDir, speed * delta);
                     nextPos.normalize().multiplyScalar(PLANET_RADIUS);
-                    break;
+
+                    // We don't break here so we can continue checking all animals for proximity
                 }
+            }
+
+            // Update battle store with the closest target
+            const battleStore = useBattleStore.getState();
+            if (closestAnimalId !== null) {
+                const matchingCreature = NUSA_CREATURES.find(c => c.id === closestAnimalId) || null;
+                if (battleStore.nearbyCreature?.id !== matchingCreature?.id) {
+                    battleStore.setNearbyCreature(matchingCreature);
+                }
+            } else if (battleStore.nearbyCreature !== null) {
+                battleStore.setNearbyCreature(null);
             }
 
             playerPosition.current.copy(nextPos);

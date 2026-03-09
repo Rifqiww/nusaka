@@ -4,7 +4,11 @@ import PokemonCard from './HewanCard';
 interface Pokemon {
   id: number;
   name?: string;
+  nickname?: string;
   level?: number;
+  exp?: number;
+  element?: string;
+  type?: string;    // creature type (Sky, Dragon, Beast, etc.)
   image?: string;
   isEmpty?: boolean;
 }
@@ -19,8 +23,11 @@ const PokemonGrid = ({ pokemons }: PokemonGridProps) => {
       {pokemons.map((pokemon) => (
         <div key={pokemon.id} className="min-w-[85vw] md:min-w-0 snap-center">
           <PokemonCard
-            name={pokemon.name}
+            name={pokemon.nickname || pokemon.name}
             level={pokemon.level}
+            exp={pokemon.exp}
+            element={pokemon.element}
+            creatureType={pokemon.type}
             image={pokemon.image}
             isEmpty={pokemon.isEmpty}
           />

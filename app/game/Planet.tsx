@@ -242,7 +242,7 @@ export default function Planet() {
             </mesh>
             <Trees />
             {KOMODO_DATA.map((data, i) => (
-                <Animal key={`komodo-${i}`} path="/model/komodo.glb" position={data.position.clone().addScaledVector(data.normal, 0)} normal={data.normal} rotationY={data.rotationY} scale={data.scale * 0.3} />
+                <Animal key={`komodo-${i}`} path="/model/Komodo.glb" position={data.position.clone().addScaledVector(data.normal, 0)} normal={data.normal} rotationY={data.rotationY} scale={data.scale * 0.3} />
             ))}
             {ORANGUTAN_DATA.map((data, i) => (
                 <Animal key={`orangutan-${i}`} path="/model/OrangUtan.glb" position={data.position.clone().addScaledVector(data.normal, 0)} normal={data.normal} rotationY={data.rotationY} scale={data.scale * 0.6} />

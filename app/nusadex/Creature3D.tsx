@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, Suspense } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useGLTF, Center, Environment, useAnimations, OrbitControls, ContactShadows } from "@react-three/drei";
 import * as THREE from "three";
@@ -11,11 +11,13 @@ function Model({
   autoRotate = true,
   modelScale = 1,
   position = [0, 0, 0],
+  animationName = 'idle',
 }: {
   url: string;
   autoRotate?: boolean;
   modelScale?: number;
   position?: [number, number, number];
+  animationName?: string;
 }) {
   const { scene, animations } = useGLTF(url) as any;
   const { ref, actions, names } = useAnimations(animations);
@@ -53,17 +55,46 @@ function Model({
     return clonedScene;
   }, [scene]);
 
+  // Track the current action so we can cleanly crossfade
+  const currentActionRef = useRef<THREE.AnimationAction | null>(null);
+
   useEffect(() => {
-    const actionName = names.find((n: string) => n.toLowerCase().includes('idle')) || names[0];
-    if (actionName && actions[actionName]) {
-      actions[actionName]?.reset().fadeIn(0.5).play();
+    if (!names.length) return;
+
+    // Determine target animation name based on the prop
+    let targetName = names[0];
+    const matchAnim = (keyword: string) => names.find((n: string) => n.toLowerCase().includes(keyword));
+
+    if (animationName === 'attack') {
+      targetName = matchAnim('attack') || matchAnim('bite') || matchAnim('strike') || names[0];
+    } else if (animationName === 'hit') {
+      targetName = matchAnim('hit') || matchAnim('damage') || matchAnim('hurt') || names[0];
+    } else if (animationName === 'walk') {
+      targetName = matchAnim('walk') || matchAnim('run') || matchAnim('move') || names[0];
+    } else {
+      targetName = matchAnim('idle') || names[0];
     }
-    return () => {
-      if (actionName && actions[actionName]) {
-        actions[actionName]?.fadeOut(0.5);
+
+    const action = actions[targetName];
+    if (action) {
+      action.reset().fadeIn(0.2).play();
+
+      // If it's an attack or hit, we don't want it to loop forever, maybe play once?
+      if (animationName === 'attack' || animationName === 'hit') {
+        action.setLoop(THREE.LoopOnce, 1);
+        action.clampWhenFinished = true;
+      } else {
+        action.setLoop(THREE.LoopRepeat, Infinity);
+        action.clampWhenFinished = false;
       }
-    };
-  }, [actions, names, url]);
+
+      if (currentActionRef.current && currentActionRef.current !== action) {
+        currentActionRef.current.fadeOut(0.2);
+      }
+      currentActionRef.current = action;
+    }
+
+  }, [actions, names, url, animationName]);
 
   return (
     <group scale={modelScale} position={position}>
@@ -77,23 +108,27 @@ export default function Creature3D({
   autoRotate = true,
   scale = 1,
   position = [0, 0, 0],
+  animationName = 'idle',
 }: {
   modelUrl: string;
   autoRotate?: boolean;
   scale?: number;
   position?: [number, number, number];
+  animationName?: string;
 }) {
   return (
     <div className="w-full h-full min-h-[200px] cursor-grab active:cursor-grabbing">
-      <Canvas shadows camera={{ position: [0, 2, 8], fov: 35 }}>
+      <Canvas shadows camera={{ position: [30, 15, 10], fov: 40 }}>
         <color attach="background" args={["transparent"]} />
 
         <OrbitControls
-          enableZoom={false}
+          enableZoom={true}
           enablePan={false}
           autoRotate={autoRotate}
           autoRotateSpeed={4}
           makeDefault
+          minPolarAngle={Math.PI / 4}
+          maxPolarAngle={Math.PI / 1.5}
         />
 
         <Environment preset="city" />
@@ -102,8 +137,10 @@ export default function Creature3D({
         <directionalLight position={[-10, 10, -10]} intensity={2} />
 
         <group scale={scale} position={position}>
-          <Center bottom>
-            <Model url={modelUrl} autoRotate={autoRotate} />
+          <Center>
+            <Suspense fallback={null}>
+              <Model url={modelUrl} autoRotate={autoRotate} animationName={animationName} />
+            </Suspense>
           </Center>
         </group>
 
@@ -120,6 +157,6 @@ export default function Creature3D({
   );
 } // Preload models for faster first-time rendering
 useGLTF.preload("/model/rajawali.glb");
-useGLTF.preload("/model/komodo.glb");
+useGLTF.preload("/model/Komodo.glb");
 useGLTF.preload("/model/OrangUtan.glb");
 

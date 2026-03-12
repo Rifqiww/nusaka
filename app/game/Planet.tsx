@@ -152,17 +152,28 @@ function Trees() {
     const _treeSphere = useMemo(() => new THREE.Sphere(new THREE.Vector3(), 8), []); // 8 unit buffer radius
 
     const prevCamQuat = useRef(new THREE.Quaternion());
-    const treeVisibility = useRef(new Uint8Array(TREES_DATA.length)); // 1 = visible, 0 = hidden
 
-    const SLICE_SIZE = 150; // Update 150 trees per frame to avoid INP spikes
+    const SLICE_SIZE = 300; // Increased slice size for faster world updates (5 frames for full world)
     const currentSlice = useRef(0);
+    const hasInitialized = useRef(false);
 
     useFrame((state) => {
         if (!meshRef.current || !treeMesh) return;
 
-        // Skip logic: only re-calculate frustum if camera moved or rotated significantly
+        // 1. Initial Setup: Set all scales to 0 once to ensure a clean slate
+        if (!hasInitialized.current) {
+            hasInitialized.current = true;
+            meshRef.current.count = TREES_DATA.length;
+            const zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
+            for (let i = 0; i < TREES_DATA.length; i++) {
+                meshRef.current.setMatrixAt(i, zeroMatrix);
+            }
+            meshRef.current.instanceMatrix.needsUpdate = true;
+        }
+
+        // 2. Camera tracking
         const moved = camera.position.distanceToSquared(prevCamPos.current) > 1;
-        const rotated = camera.quaternion.angleTo(prevCamQuat.current) > 0.05;
+        const rotated = camera.quaternion.angleTo(prevCamQuat.current) > 0.1;
 
         if (moved || rotated) {
             prevCamPos.current.copy(camera.position);
@@ -171,12 +182,9 @@ function Trees() {
             // Update Frustum
             _projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
             _frustum.setFromProjectionMatrix(_projScreenMatrix);
-
-            // Reset slice to process everything immediately on big camera change
-            currentSlice.current = 0;
         }
 
-        // Process a slice of trees every frame to distribute CPU load
+        // 3. Process a slice of trees
         const start = currentSlice.current * SLICE_SIZE;
         const end = Math.min(start + SLICE_SIZE, TREES_DATA.length);
 
@@ -185,25 +193,19 @@ function Trees() {
             const distSq = camera.position.distanceToSquared(tree.position);
 
             _treeSphere.center.copy(tree.position);
-            // Higher radius buffer (8.0) ensures trees don't flicker at edges
             const isVisible = distSq < 200 * 200 && _frustum.intersectsSphere(_treeSphere);
-            treeVisibility.current[i] = isVisible ? 1 : 0;
-        }
 
-        // Advance slice
-        currentSlice.current = (currentSlice.current + 1) % Math.ceil(TREES_DATA.length / SLICE_SIZE);
-
-        // Re-pack instances based on current visibility state
-        let visibleCount = 0;
-        for (let i = 0; i < TREES_DATA.length; i++) {
-            if (treeVisibility.current[i] === 1) {
+            // Critical Change: In-place update to avoid flickering/jumping
+            if (isVisible) {
                 _tempMatrix.fromArray(treeMatrices, i * 16);
-                meshRef.current.setMatrixAt(visibleCount, _tempMatrix);
-                visibleCount++;
+            } else {
+                _tempMatrix.makeScale(0, 0, 0);
             }
+            meshRef.current.setMatrixAt(i, _tempMatrix);
         }
 
-        meshRef.current.count = visibleCount;
+        // 4. Advance slice & update GPU
+        currentSlice.current = (currentSlice.current + 1) % Math.ceil(TREES_DATA.length / SLICE_SIZE);
         meshRef.current.instanceMatrix.needsUpdate = true;
     });
 

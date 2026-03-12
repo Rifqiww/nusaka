@@ -408,19 +408,11 @@ export default function Player() {
             _nextPos.copy(playerPosition.current).addScaledVector(_inputDir, speed * delta);
             _nextPos.normalize().multiplyScalar(PLANET_RADIUS);
 
-            let closestAnimalId: number | null = null;
-            let closestDistSq = Infinity;
-
             for (let i = 0; i < COLLIDERS.length; i++) {
                 const col = COLLIDERS[i];
                 _p1.copy(_nextPos).normalize();
                 _p2.copy(col.pos).normalize();
                 const distSq = _p1.distanceToSquared(_p2) * PLANET_RADIUS * PLANET_RADIUS;
-
-                if (col.type === 'animal' && distSq < 15 * 15 && distSq < closestDistSq) {
-                    closestDistSq = distSq;
-                    closestAnimalId = col.id;
-                }
 
                 if (distSq < col.radius * col.radius) {
                     _slideDir.copy(_nextPos).sub(col.pos).normalize();
@@ -428,24 +420,6 @@ export default function Player() {
                     _nextPos.normalize().multiplyScalar(PLANET_RADIUS);
                 }
             }
-
-            // --- Throttled proximity update (max 10x/sec) ---
-            // Avoids calling setNearbyCreature (Zustand) 60x/sec which re-renders page.tsx
-            proximityTimer.current += delta;
-            if (proximityTimer.current >= 0.1) {
-                proximityTimer.current = 0;
-                if (closestAnimalId !== lastNearbyId.current) {
-                    lastNearbyId.current = closestAnimalId;
-                    const battleStore = useBattleStore.getState();
-                    if (closestAnimalId !== null) {
-                        const matchingCreature = NUSA_CREATURES.find(c => c.id === closestAnimalId) || null;
-                        battleStore.setNearbyCreature(matchingCreature);
-                    } else {
-                        battleStore.setNearbyCreature(null);
-                    }
-                }
-            }
-
             playerPosition.current.copy(_nextPos);
 
             const newUp = _surfaceNormal.copy(playerPosition.current).normalize(); // reuse _surfaceNormal as newUp
@@ -464,6 +438,41 @@ export default function Player() {
 
             _basisMatrix.makeBasis(_right, newUp, _fwd);
             targetRotation.current.setFromRotationMatrix(_basisMatrix);
+        }
+
+        // --- GLOBAL PROXIMITY CHECK (Always runs, throttled) ---
+        proximityTimer.current += delta;
+        if (proximityTimer.current >= 0.1) {
+            proximityTimer.current = 0;
+
+            let closestAnimalId: number | null = null;
+            let closestDistSq = Infinity;
+
+            for (let i = 0; i < COLLIDERS.length; i++) {
+                const col = COLLIDERS[i];
+                if (col.type !== 'animal') continue;
+
+                _p1.copy(playerPosition.current).normalize();
+                _p2.copy(col.pos).normalize();
+                const distSq = _p1.distanceToSquared(_p2) * PLANET_RADIUS * PLANET_RADIUS;
+
+                // Increased radius to 18m to prevent flickering/early disappearance
+                if (distSq < 18 * 18 && distSq < closestDistSq) {
+                    closestDistSq = distSq;
+                    closestAnimalId = col.id;
+                }
+            }
+
+            if (closestAnimalId !== lastNearbyId.current) {
+                lastNearbyId.current = closestAnimalId;
+                const battleStore = useBattleStore.getState();
+                if (closestAnimalId !== null) {
+                    const matchingCreature = NUSA_CREATURES.find(c => c.id === closestAnimalId) || null;
+                    battleStore.setNearbyCreature(matchingCreature);
+                } else {
+                    battleStore.setNearbyCreature(null);
+                }
+            }
         }
 
         group.current.position.copy(playerPosition.current);

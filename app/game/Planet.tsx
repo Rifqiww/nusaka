@@ -165,8 +165,8 @@ function Trees() {
         const distSq = camera.position.distanceToSquared(prevCamPos.current);
         const rotDiff = camera.quaternion.angleTo(prevCamQuat.current);
 
-        // Only update if moved > 2m or rotated > 5 degrees
-        if (!hasInitialized.current || distSq > 4 || rotDiff > 0.1) {
+        // Slightly tighter threshold (1m or 5 deg) for better responsiveness
+        if (!hasInitialized.current || distSq > 1 || rotDiff > 0.08) {
             hasInitialized.current = true;
             prevCamPos.current.copy(camera.position);
             prevCamQuat.current.copy(camera.quaternion);
@@ -178,28 +178,34 @@ function Trees() {
             let visibleCount = 0;
             const treeCount = TREES_DATA.length;
 
-            // HIGH SPEED PACKING: Iterate all trees and copy visible ones to packedBuffer
+            // Render trees that are NEAR player (for shadows) OR in FRUSTUM (for visuals)
             for (let i = 0; i < treeCount; i++) {
                 const tree = TREES_DATA[i];
                 const dSq = camera.position.distanceToSquared(tree.position);
 
-                // Visibility check
-                _treeSphere.center.copy(tree.position);
-                const isVisible = dSq < 200 * 200 && _frustum.intersectsSphere(_treeSphere);
+                // If within 40m, always show (ensures shadows are correct)
+                // Otherwise, check if in camera frustum
+                let isVisible = false;
+                if (dSq < 200 * 200) {
+                    if (dSq < 40 * 40) {
+                        isVisible = true;
+                    } else {
+                        _treeSphere.center.copy(tree.position);
+                        isVisible = _frustum.intersectsSphere(_treeSphere);
+                    }
+                }
 
                 if (isVisible) {
                     const offset = visibleCount * 16;
-                    const sourceOffset = i * 16;
-                    // Bulk copy 16 floats from pre-calculated matrices
+                    const srcOffset = i * 16;
                     for (let j = 0; j < 16; j++) {
-                        packedBuffer[offset + j] = treeMatrices[sourceOffset + j];
+                        packedBuffer[offset + j] = treeMatrices[srcOffset + j];
                     }
                     visibleCount++;
                 }
             }
 
-            // 2. Only upload to GPU if the visible set actually changed or moved
-            // Use count to tell GPU exactly how many trees to draw (huge mobile win)
+            // 2. Only upload to GPU if the visible set changed
             meshRef.current.count = visibleCount;
             meshRef.current.instanceMatrix.array.set(packedBuffer);
             meshRef.current.instanceMatrix.needsUpdate = true;

@@ -273,7 +273,7 @@ export default function ChoosePartnerPage() {
         const bgClass = elementBg[selectedCreature.element] || 'bg-[#E5E7EB]'
         return (
             <div
-                className="relative w-screen h-screen overflow-hidden flex bg-[#FFF9E6]"
+                className="relative w-screen h-screen overflow-hidden flex flex-col md:flex-row bg-[#FFF9E6]"
                 style={{ fontFamily: 'var(--font-nanum-pen)' }}
             >
                 {/* Dot grid */}
@@ -282,8 +282,8 @@ export default function ChoosePartnerPage() {
                     style={{ backgroundImage: 'radial-gradient(#374151 2px, transparent 2px)', backgroundSize: '24px 24px' }}
                 />
 
-                {/* LEFT: 3D Model */}
-                <div className={`w-1/2 h-full ${bgClass} border-r-[5px] border-[#374151] relative`}>
+                {/* LEFT/TOP: 3D Model */}
+                <div className={`w-full h-[40%] md:w-1/2 md:h-full ${bgClass} border-b-[5px] md:border-b-0 md:border-r-[5px] border-[#374151] relative`}>
                     <div className="absolute inset-0">
                         <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><Loader2 className="w-12 h-12 animate-spin text-[#374151]/40" /></div>}>
                             <Creature3D
@@ -295,34 +295,34 @@ export default function ChoosePartnerPage() {
                         </Suspense>
                     </div>
                     {/* Element badge overlay */}
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-white border-[3px] border-[#374151] px-5 py-2 rounded-2xl shadow-[4px_4px_0_#374151]">
-                        <ElementIcon element={selectedCreature.element} className="w-6 h-6 text-[#374151]" />
-                        <span className="text-3xl font-black text-[#374151]">{selectedCreature.element}</span>
+                    <div className="absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-white border-[3px] border-[#374151] px-4 md:px-5 py-1 md:py-2 rounded-2xl shadow-[4px_4px_0_#374151]">
+                        <ElementIcon element={selectedCreature.element} className="w-5 h-5 md:w-6 md:h-6 text-[#374151]" />
+                        <span className="text-2xl md:text-3xl font-black text-[#374151]">{selectedCreature.element}</span>
                     </div>
                 </div>
 
-                {/* RIGHT: Name Form */}
-                <div className="w-1/2 h-full flex flex-col justify-center px-8 sm:px-14 gap-6 relative z-10">
+                {/* RIGHT/BOTTOM: Name Form */}
+                <div className="w-full h-[60%] md:w-1/2 md:h-full flex flex-col justify-start md:justify-center px-6 sm:px-14 py-6 md:py-0 gap-4 md:gap-6 relative z-10 overflow-y-auto">
                     <div>
-                        <p className="text-2xl text-[#374151]/60 font-bold uppercase tracking-widest flex items-center gap-2">
-                            <Star className="w-5 h-5" />
+                        <p className="text-xl md:text-2xl text-[#374151]/60 font-bold uppercase tracking-widest flex items-center gap-2">
+                            <Star className="w-4 h-4 md:w-5 md:h-5" />
                             Partner Pertamamu
                         </p>
-                        <h1 className="text-5xl sm:text-7xl font-black text-[#374151] leading-tight">{selectedCreature.name}</h1>
+                        <h1 className="text-4xl sm:text-7xl font-black text-[#374151] leading-tight">{selectedCreature.name}</h1>
                     </div>
 
-                    <div className="bg-white border-[4px] border-[#374151] rounded-[24px] shadow-[6px_6px_0_#374151] p-5">
+                    <div className="bg-white border-[4px] border-[#374151] rounded-[24px] shadow-[6px_6px_0_#374151] p-4 md:p-5">
                         <div className="flex items-start gap-2">
-                            <MapPin className="w-6 h-6 text-[#374151]/50 mt-1 shrink-0" />
-                            <p className="text-2xl text-[#374151] leading-relaxed">
+                            <MapPin className="w-5 h-5 md:w-6 md:h-6 text-[#374151]/50 mt-1 shrink-0" />
+                            <p className="text-xl md:text-2xl text-[#374151] leading-relaxed line-clamp-4 md:line-clamp-none">
                                 {selectedCreature.description}
                             </p>
                         </div>
                     </div>
 
                     <div>
-                        <p className="text-3xl font-black text-[#374151] mb-2 flex items-center gap-2">
-                            <Pencil className="w-7 h-7" />
+                        <p className="text-2xl md:text-3xl font-black text-[#374151] mb-1 md:mb-2 flex items-center gap-2">
+                            <Pencil className="w-6 h-6 md:w-7 md:h-7" />
                             Beri nama panggilannya!
                         </p>
                         <input
@@ -331,28 +331,28 @@ export default function ChoosePartnerPage() {
                             onChange={e => setNickname(e.target.value)}
                             placeholder={selectedCreature.name}
                             maxLength={16}
-                            className="w-full bg-transparent border-b-[4px] border-[#374151] text-[#374151] text-5xl placeholder-[#374151]/30 focus:outline-none pb-2 transition-colors"
+                            className="w-full bg-transparent border-b-[4px] border-[#374151] text-[#374151] text-4xl md:text-5xl placeholder-[#374151]/30 focus:outline-none pb-1 md:pb-2 transition-colors"
                             style={{ fontFamily: 'var(--font-nanum-pen)' }}
                         />
-                        <p className="text-xl text-[#374151]/50 mt-1">{nickname.length}/16 karakter</p>
+                        <p className="text-lg md:text-xl text-[#374151]/50 mt-1">{nickname.length}/16 karakter</p>
                     </div>
 
-                    <div className="flex gap-4 mt-2">
+                    <div className="flex gap-4 mt-2 mb-6">
                         <button
                             onClick={() => { setStep('choose'); setSelectedIndex(null) }}
-                            className="text-[#374151]/70 text-3xl font-black hover:text-[#374151] transition-colors flex items-center gap-1"
+                            className="text-[#374151]/70 text-2xl md:text-3xl font-black hover:text-[#374151] transition-colors flex items-center gap-1"
                         >
-                            <ChevronLeft className="w-6 h-6" />
+                            <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
                             Ganti
                         </button>
                         <button
                             onClick={handleSave}
                             disabled={isSaving}
-                            className="flex items-center gap-2 bg-[#374151] text-white text-4xl font-black px-8 py-3 rounded-[20px] shadow-[6px_6px_0_#D97706] hover:-translate-y-1 hover:shadow-[6px_10px_0_#D97706] transition-all disabled:opacity-50 disabled:pointer-events-none"
+                            className="flex items-center gap-2 bg-[#374151] text-white text-3xl md:text-4xl font-black px-6 md:px-8 py-2 md:py-3 rounded-[20px] shadow-[6px_6px_0_#D97706] hover:-translate-y-1 hover:shadow-[6px_10px_0_#D97706] transition-all disabled:opacity-50 disabled:pointer-events-none"
                         >
                             {isSaving
-                                ? <><Loader2 className="w-6 h-6 animate-spin" /> Menyimpan...</>
-                                : <>Jadikan Partner! <Heart className="w-6 h-6" /></>
+                                ? <><Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" /> Menyimpan...</>
+                                : <>Jadikan Partner! <Heart className="w-5 h-5 md:w-6 md:h-6" /></>
                             }
                         </button>
                     </div>
@@ -397,15 +397,15 @@ export default function ChoosePartnerPage() {
                     ))}
                 </div>
 
-                <div className="relative z-10 flex flex-col items-center text-center gap-6 max-w-lg px-6">
-                    <p className="text-3xl font-bold text-[#374151]/60 uppercase tracking-widest flex items-center gap-2">
-                        <Star className="w-6 h-6" />
+                <div className="relative z-10 flex flex-col items-center text-center gap-4 md:gap-6 max-w-lg px-6 py-8 md:py-0 overflow-y-auto">
+                    <p className="text-2xl md:text-3xl font-bold text-[#374151]/60 uppercase tracking-widest flex items-center gap-2">
+                        <Star className="w-5 h-5 md:w-6 md:h-6" />
                         Partner Pertamamu adalah
-                        <Star className="w-6 h-6" />
+                        <Star className="w-5 h-5 md:w-6 md:h-6" />
                     </p>
 
                     {/* Creature Card */}
-                    <div className={`w-52 h-52 sm:w-64 sm:h-64 ${bgClass} border-[5px] border-[#374151] rounded-[32px] shadow-[8px_8px_0_#374151] relative overflow-hidden`}>
+                    <div className={`w-40 h-40 sm:w-64 sm:h-64 ${bgClass} border-[4px] md:border-[5px] border-[#374151] rounded-[24px] md:rounded-[32px] shadow-[6px_6px_0_#374151] md:shadow-[8px_8px_0_#374151] relative overflow-hidden shrink-0`}>
                         <Suspense fallback={<div className="w-full h-full flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-[#374151]/40" /></div>}>
                             <Creature3D
                                 modelUrl={selectedCreature.modelUrl}
@@ -417,30 +417,30 @@ export default function ChoosePartnerPage() {
                     </div>
 
                     <div>
-                        <h1 className="text-6xl sm:text-8xl font-black text-[#374151]" style={{ textShadow: `4px 4px 0 ${accentColor}` }}>
+                        <h1 className="text-5xl sm:text-8xl font-black text-[#374151]" style={{ textShadow: `4px 4px 0 ${accentColor}` }}>
                             {displayName}
                         </h1>
                         {displayName !== selectedCreature.name && (
-                            <p className="text-2xl text-[#374151]/60 mt-1 flex items-center justify-center gap-1">
+                            <p className="text-xl md:text-2xl text-[#374151]/60 mt-1 flex items-center justify-center gap-1">
                                 <PawPrint className="w-4 h-4" />
                                 {selectedCreature.name}
                             </p>
                         )}
                     </div>
 
-                    <div className="bg-white border-[4px] border-[#374151] rounded-[24px] shadow-[6px_6px_0_#374151] p-5">
-                        <p className="text-2xl sm:text-3xl text-[#374151] leading-relaxed flex items-start gap-3">
-                            <Heart className="w-7 h-7 shrink-0 mt-1 text-[#F87171]" />
-                            Selamat! <strong>{displayName}</strong> senang bisa bertemu denganmu. Petualangan Nusantara kalian baru saja dimulai!
+                    <div className="bg-white border-[4px] border-[#374151] rounded-[24px] shadow-[6px_6px_0_#374151] p-4 md:p-5">
+                        <p className="text-xl md:text-3xl text-[#374151] leading-relaxed flex items-start gap-2 md:gap-3 text-left md:text-center">
+                            <Heart className="w-6 h-6 md:w-7 md:h-7 shrink-0 mt-1 text-[#F87171]" />
+                            Selamat! <strong>{displayName}</strong> senang bisa bertemu denganmu. Petualangan Nusantara kalian dimulai!
                         </p>
                     </div>
 
                     <button
                         onClick={handleFinish}
-                        className="group flex items-center gap-3 bg-[#374151] text-white text-4xl font-black px-10 py-4 rounded-[20px] shadow-[6px_6px_0_#D97706] hover:-translate-y-1 hover:shadow-[6px_10px_0_#D97706] transition-all"
+                        className="group flex items-center gap-3 bg-[#374151] text-white text-3xl md:text-4xl font-black px-8 md:px-10 py-3 md:py-4 rounded-[20px] shadow-[6px_6px_0_#D97706] hover:-translate-y-1 hover:shadow-[6px_10px_0_#D97706] transition-all whitespace-nowrap"
                     >
                         Mulai Petualangan!
-                        <ChevronRight className="w-7 h-7 group-hover:translate-x-1 transition-transform" />
+                        <ChevronRight className="w-6 h-6 md:w-7 md:h-7 group-hover:translate-x-1 transition-transform" />
                     </button>
                 </div>
             </div>

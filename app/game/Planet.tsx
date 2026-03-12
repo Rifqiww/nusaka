@@ -152,61 +152,59 @@ function Trees() {
     const _treeSphere = useMemo(() => new THREE.Sphere(new THREE.Vector3(), 8), []); // 8 unit buffer radius
 
     const prevCamQuat = useRef(new THREE.Quaternion());
+    const lastVisibleCount = useRef(-1);
 
-    const SLICE_SIZE = 300; // Increased slice size for faster world updates (5 frames for full world)
-    const currentSlice = useRef(0);
+    // Stable buffer to avoid re-allocating memory
+    const packedBuffer = useMemo(() => new Float32Array(TREES_DATA.length * 16), []);
     const hasInitialized = useRef(false);
 
-    useFrame((state) => {
+    useFrame(() => {
         if (!meshRef.current || !treeMesh) return;
 
-        // 1. Initial Setup: Set all scales to 0 once to ensure a clean slate
-        if (!hasInitialized.current) {
+        // 1. Threshold check: only re-calculate if camera moved/rotated enough
+        const distSq = camera.position.distanceToSquared(prevCamPos.current);
+        const rotDiff = camera.quaternion.angleTo(prevCamQuat.current);
+
+        // Only update if moved > 2m or rotated > 5 degrees
+        if (!hasInitialized.current || distSq > 4 || rotDiff > 0.1) {
             hasInitialized.current = true;
-            meshRef.current.count = TREES_DATA.length;
-            const zeroMatrix = new THREE.Matrix4().makeScale(0, 0, 0);
-            for (let i = 0; i < TREES_DATA.length; i++) {
-                meshRef.current.setMatrixAt(i, zeroMatrix);
-            }
-            meshRef.current.instanceMatrix.needsUpdate = true;
-        }
-
-        // 2. Camera tracking
-        const moved = camera.position.distanceToSquared(prevCamPos.current) > 1;
-        const rotated = camera.quaternion.angleTo(prevCamQuat.current) > 0.1;
-
-        if (moved || rotated) {
             prevCamPos.current.copy(camera.position);
             prevCamQuat.current.copy(camera.quaternion);
 
             // Update Frustum
             _projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
             _frustum.setFromProjectionMatrix(_projScreenMatrix);
-        }
 
-        // 3. Process a slice of trees
-        const start = currentSlice.current * SLICE_SIZE;
-        const end = Math.min(start + SLICE_SIZE, TREES_DATA.length);
+            let visibleCount = 0;
+            const treeCount = TREES_DATA.length;
 
-        for (let i = start; i < end; i++) {
-            const tree = TREES_DATA[i];
-            const distSq = camera.position.distanceToSquared(tree.position);
+            // HIGH SPEED PACKING: Iterate all trees and copy visible ones to packedBuffer
+            for (let i = 0; i < treeCount; i++) {
+                const tree = TREES_DATA[i];
+                const dSq = camera.position.distanceToSquared(tree.position);
 
-            _treeSphere.center.copy(tree.position);
-            const isVisible = distSq < 200 * 200 && _frustum.intersectsSphere(_treeSphere);
+                // Visibility check
+                _treeSphere.center.copy(tree.position);
+                const isVisible = dSq < 200 * 200 && _frustum.intersectsSphere(_treeSphere);
 
-            // Critical Change: In-place update to avoid flickering/jumping
-            if (isVisible) {
-                _tempMatrix.fromArray(treeMatrices, i * 16);
-            } else {
-                _tempMatrix.makeScale(0, 0, 0);
+                if (isVisible) {
+                    const offset = visibleCount * 16;
+                    const sourceOffset = i * 16;
+                    // Bulk copy 16 floats from pre-calculated matrices
+                    for (let j = 0; j < 16; j++) {
+                        packedBuffer[offset + j] = treeMatrices[sourceOffset + j];
+                    }
+                    visibleCount++;
+                }
             }
-            meshRef.current.setMatrixAt(i, _tempMatrix);
-        }
 
-        // 4. Advance slice & update GPU
-        currentSlice.current = (currentSlice.current + 1) % Math.ceil(TREES_DATA.length / SLICE_SIZE);
-        meshRef.current.instanceMatrix.needsUpdate = true;
+            // 2. Only upload to GPU if the visible set actually changed or moved
+            // Use count to tell GPU exactly how many trees to draw (huge mobile win)
+            meshRef.current.count = visibleCount;
+            meshRef.current.instanceMatrix.array.set(packedBuffer);
+            meshRef.current.instanceMatrix.needsUpdate = true;
+            lastVisibleCount.current = visibleCount;
+        }
     });
 
     if (!treeMesh) return null;

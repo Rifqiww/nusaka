@@ -21,13 +21,26 @@ let registeredCamera: THREE.Camera | null = null;
 const LOD_INTERVAL_MS = 250; // 4fps is fine for LOD decisions
 const RENDER_DIST_SQ = 150 * 150;
 
+const _frustum = new THREE.Frustum();
+const _projScreenMatrix = new THREE.Matrix4();
+const _animalSphere = new THREE.Sphere(new THREE.Vector3(), 5); // 5 unit margin for animals
+
 function startLodSystem() {
     if (lodInterval) return;
     lodInterval = setInterval(() => {
         if (!registeredCamera) return;
+
+        // Calculate frustum once per interval tick to save CPU
+        _projScreenMatrix.multiplyMatrices(registeredCamera.projectionMatrix, registeredCamera.matrixWorldInverse);
+        _frustum.setFromProjectionMatrix(_projScreenMatrix);
+
         lodRegistry.forEach((data, groupRef) => {
             const distSq = registeredCamera!.position.distanceToSquared(data.position);
-            const isVisible = distSq < RENDER_DIST_SQ;
+
+            _animalSphere.center.copy(data.position);
+            // Use sphere intersection to prevent animals popping out when near screen edges
+            const isVisible = distSq < RENDER_DIST_SQ && _frustum.intersectsSphere(_animalSphere);
+
             if (groupRef.visible !== isVisible) {
                 groupRef.visible = isVisible;
                 data.setVisible(isVisible);

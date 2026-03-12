@@ -145,39 +145,66 @@ function Trees() {
         return matrices;
     }, []);
 
-    const updateTimer = useRef(1); // Start > 0.25 to force an immediate first-frame update
     const prevCamPos = useRef(new THREE.Vector3(Infinity, Infinity, Infinity)); // Force first check to pass
     const _tempMatrix = useMemo(() => new THREE.Matrix4(), []);
+    const _frustum = useMemo(() => new THREE.Frustum(), []);
+    const _projScreenMatrix = useMemo(() => new THREE.Matrix4(), []);
+    const _treeSphere = useMemo(() => new THREE.Sphere(new THREE.Vector3(), 8), []); // 8 unit buffer radius
 
-    useFrame((_, delta) => {
+    const prevCamQuat = useRef(new THREE.Quaternion());
+    const treeVisibility = useRef(new Uint8Array(TREES_DATA.length)); // 1 = visible, 0 = hidden
+
+    const SLICE_SIZE = 150; // Update 150 trees per frame to avoid INP spikes
+    const currentSlice = useRef(0);
+
+    useFrame((state) => {
         if (!meshRef.current || !treeMesh) return;
 
-        // Only recalculate visibility 4 times per second to save CPU
-        updateTimer.current += delta;
-        if (updateTimer.current > 0.25) {
-            updateTimer.current = 0;
+        // Skip logic: only re-calculate frustum if camera moved or rotated significantly
+        const moved = camera.position.distanceToSquared(prevCamPos.current) > 1;
+        const rotated = camera.quaternion.angleTo(prevCamQuat.current) > 0.05;
 
-            // Skip update if the camera hasn't moved much
-            if (camera.position.distanceToSquared(prevCamPos.current) < 25) return;
+        if (moved || rotated) {
             prevCamPos.current.copy(camera.position);
+            prevCamQuat.current.copy(camera.quaternion);
 
-            let visibleCount = 0;
+            // Update Frustum
+            _projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+            _frustum.setFromProjectionMatrix(_projScreenMatrix);
 
-            // Iterate all trees and pack ONLY the visible ones to the front of the float32 array
-            // This is the #1 optimization for mobile GPUs! (reduces vertex count by ~90%)
-            for (let i = 0; i < TREES_DATA.length; i++) {
-                const distSq = camera.position.distanceToSquared(TREES_DATA[i].position);
-
-                if (distSq < 200 * 200) {
-                    _tempMatrix.fromArray(treeMatrices, i * 16);
-                    meshRef.current.setMatrixAt(visibleCount, _tempMatrix);
-                    visibleCount++;
-                }
-            }
-
-            meshRef.current.count = visibleCount;
-            meshRef.current.instanceMatrix.needsUpdate = true;
+            // Reset slice to process everything immediately on big camera change
+            currentSlice.current = 0;
         }
+
+        // Process a slice of trees every frame to distribute CPU load
+        const start = currentSlice.current * SLICE_SIZE;
+        const end = Math.min(start + SLICE_SIZE, TREES_DATA.length);
+
+        for (let i = start; i < end; i++) {
+            const tree = TREES_DATA[i];
+            const distSq = camera.position.distanceToSquared(tree.position);
+
+            _treeSphere.center.copy(tree.position);
+            // Higher radius buffer (8.0) ensures trees don't flicker at edges
+            const isVisible = distSq < 200 * 200 && _frustum.intersectsSphere(_treeSphere);
+            treeVisibility.current[i] = isVisible ? 1 : 0;
+        }
+
+        // Advance slice
+        currentSlice.current = (currentSlice.current + 1) % Math.ceil(TREES_DATA.length / SLICE_SIZE);
+
+        // Re-pack instances based on current visibility state
+        let visibleCount = 0;
+        for (let i = 0; i < TREES_DATA.length; i++) {
+            if (treeVisibility.current[i] === 1) {
+                _tempMatrix.fromArray(treeMatrices, i * 16);
+                meshRef.current.setMatrixAt(visibleCount, _tempMatrix);
+                visibleCount++;
+            }
+        }
+
+        meshRef.current.count = visibleCount;
+        meshRef.current.instanceMatrix.needsUpdate = true;
     });
 
     if (!treeMesh) return null;

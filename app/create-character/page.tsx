@@ -127,13 +127,13 @@ export default function CreateCharacter() {
 
     return (
         <div
-            className="relative w-screen h-screen overflow-hidden flex bg-[#87CEEB]"
+            className="relative w-screen h-screen overflow-hidden flex flex-col md:flex-row bg-[#87CEEB]"
             style={{ fontFamily: 'var(--font-nanum-pen)' }}
         >
 
-            {/* ── LEFT: 3D Character Viewer ─────────────── */}
+            {/* ── LEFT/TOP: 3D Character Viewer ─────────────── */}
             <div
-                className="w-1/2 h-full select-none cursor-grab active:cursor-grabbing"
+                className="w-full h-[45%] md:w-1/2 md:h-full select-none cursor-grab active:cursor-grabbing relative"
                 onPointerDown={onPointerDown}
                 onPointerMove={onPointerMove}
                 onPointerUp={onPointerUp}
@@ -152,39 +152,39 @@ export default function CreateCharacter() {
 
                 {/* Drag hint */}
                 <p
-                    className="absolute bottom-10 left-1/4 -translate-x-1/2 text-white/70 text-2xl pointer-events-none select-none"
+                    className="absolute bottom-2 md:bottom-10 left-1/2 md:left-1/4 -translate-x-1/2 text-white/70 text-lg md:text-2xl pointer-events-none select-none whitespace-nowrap"
                     style={{ fontFamily: 'var(--font-nanum-pen)', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}
                 >
                     ← geser untuk putar →
                 </p>
             </div>
 
-            {/* ── RIGHT: Form ──────────────────────────── */}
-            <div className="w-1/2 h-full flex flex-col items-start justify-center px-12 md:px-20 gap-8">
+            {/* ── RIGHT/BOTTOM: Form ──────────────────────────── */}
+            <div className="w-full h-[55%] md:w-1/2 md:h-full flex flex-col items-start justify-start md:justify-center px-8 sm:px-12 md:px-20 pt-6 md:pt-0 gap-4 md:gap-8 z-10">
 
                 <div>
                     {/* Nusaka Logo */}
-                    <div className="relative w-62 h-34 mb-4">
+                    <div className="relative w-40 h-16 md:w-62 md:h-24 lg:h-34 mb-0 md:mb-4">
                         <img src="/Nusaka.svg" alt="Nusaka Logo" className="absolute inset-0 w-full h-full object-contain object-left" />
                     </div>
                     <h1
-                        className="text-6xl md:text-8xl text-white"
+                        className="text-5xl sm:text-6xl md:text-8xl text-white leading-none mt-1 md:mt-0"
                     >
-                        Siapa<br />namamu?
+                        Siapa <br className="hidden md:block" /> namamu?
                     </h1>
-                    <p className="text-white/80 text-2xl mt-3 drop-shadow">
+                    <p className="text-white/80 text-xl md:text-2xl mt-1 md:mt-3 drop-shadow">
                         Nama ini akan terukir di jurnal Nusaka selamanya.
                     </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="w-full flex flex-col gap-5">
+                <form onSubmit={handleSubmit} className="w-full flex flex-col gap-3 md:gap-5">
                     <input
                         type="text"
                         value={characterName}
                         onChange={e => setCharacterName(e.target.value)}
                         placeholder="namamu..."
                         maxLength={16}
-                        className="w-full bg-transparent border-b-4 border-white/80 text-white text-5xl placeholder-white/40 focus:outline-none focus:border-white pb-2 transition-colors"
+                        className="w-full bg-transparent border-b-4 border-white/80 text-white text-4xl md:text-5xl placeholder-white/40 focus:outline-none focus:border-white pb-1 md:pb-2 transition-colors"
                         style={{ fontFamily: 'var(--font-nanum-pen)' }}
                         required
                     />
@@ -193,11 +193,11 @@ export default function CreateCharacter() {
                         <p className="text-red-300 text-xl drop-shadow">{errorText}</p>
                     )}
 
-                    <div className="flex gap-4 mt-4">
+                    <div className="flex gap-4 mt-2 md:mt-4 items-center flex-wrap md:flex-nowrap">
                         <button
                             type="button"
                             onClick={() => startTransition(() => router.push('/'))}
-                            className="text-white/70 text-3xl hover:text-white transition-colors"
+                            className="text-white/70 text-2xl md:text-3xl hover:text-white transition-colors whitespace-nowrap"
                         >
                             ← Kembali
                         </button>
@@ -205,10 +205,10 @@ export default function CreateCharacter() {
                         <button
                             type="submit"
                             disabled={!characterName.trim() || isSubmitting}
-                            className="text-white text-4xl border-b-4 border-white/80 hover:border-white pb-1 transition-all disabled:opacity-40 disabled:pointer-events-none flex items-center gap-2"
+                            className="text-white text-3xl md:text-4xl border-b-4 border-white/80 hover:border-white pb-1 transition-all disabled:opacity-40 disabled:pointer-events-none flex items-center gap-2 whitespace-nowrap"
                         >
                             {isSubmitting
-                                ? <><Loader2 className="w-7 h-7 animate-spin" /> Menyimpan...</>
+                                ? <><Loader2 className="w-5 h-5 md:w-7 md:h-7 animate-spin" /> Menyimpan...</>
                                 : 'Mulai Petualangan! →'}
                         </button>
                     </div>

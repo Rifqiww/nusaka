@@ -4,6 +4,7 @@ import { type Creature } from './creatures';
 
 export interface PartnerCreature extends Creature {
     nickname?: string;
+    instanceId: string;
 }
 
 export interface CreatureState {
@@ -11,9 +12,9 @@ export interface CreatureState {
     firstPartner: PartnerCreature | null;
     hasChosenPartner: boolean;
     seenIds: number[];
-    addCreature: (creature: PartnerCreature) => void;
+    addCreature: (creature: Omit<PartnerCreature, 'instanceId'> & { instanceId?: string }) => void;
     updateCreature: (creature: PartnerCreature) => void;
-    setFirstPartner: (creature: PartnerCreature) => void;
+    setFirstPartner: (creature: Omit<PartnerCreature, 'instanceId'> & { instanceId?: string }) => void;
     markAsSeen: (id: number) => void;
 }
 
@@ -25,9 +26,15 @@ export const useCreatureStore = create<CreatureState>()(
             hasChosenPartner: false,
             seenIds: [],
             addCreature: (creature) =>
-                set((state) => ({
-                    capturedCreatures: [...state.capturedCreatures, creature],
-                })),
+                set((state) => {
+                    const newCreature = {
+                        ...creature,
+                        instanceId: creature.instanceId || `${creature.id}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+                    };
+                    return {
+                        capturedCreatures: [...state.capturedCreatures, newCreature],
+                    };
+                }),
             updateCreature: (creature) =>
                 set((state) => ({
                     capturedCreatures: state.capturedCreatures.map((c) =>
@@ -35,7 +42,12 @@ export const useCreatureStore = create<CreatureState>()(
                     ),
                 })),
             setFirstPartner: (creature) => {
-                const starter: PartnerCreature = { ...creature, level: 0, exp: 0 };
+                const starter: PartnerCreature = {
+                    ...creature,
+                    level: 0,
+                    exp: 0,
+                    instanceId: `starter-${creature.id}-${Date.now()}`
+                };
                 set(() => ({
                     firstPartner: starter,
                     hasChosenPartner: true,

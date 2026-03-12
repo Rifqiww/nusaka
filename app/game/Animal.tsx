@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useThree } from '@react-three/fiber'
 import { useGLTF, useAnimations } from '@react-three/drei'
 import { SkeletonUtils } from 'three-stdlib'
 
@@ -12,9 +12,31 @@ interface AnimalProps {
     scale?: number
 }
 
+// Shared LOD system: instead of 45 separate useFrame callbacks (one per animal),
+// we use a single interval + IntersectionObserver-style approach.
+// Each animal registers itself and gets updated from a centralized timer.
+const lodRegistry = new Map<THREE.Group, THREE.Vector3>();
+
+// A module-level interval updates all animal visibility at 5 fps max
+// This replaces 45x useFrame subscriptions with a single lightweight timer
+let lodInterval: ReturnType<typeof setInterval> | null = null;
+let registeredCamera: THREE.Camera | null = null;
+const LOD_INTERVAL_MS = 200; // 5fps is fine for LOD decisions
+const RENDER_DIST_SQ = 150 * 150;
+
+function startLodSystem() {
+    if (lodInterval) return;
+    lodInterval = setInterval(() => {
+        if (!registeredCamera) return;
+        lodRegistry.forEach((position, groupRef) => {
+            const distSq = registeredCamera!.position.distanceToSquared(position);
+            groupRef.visible = distSq < RENDER_DIST_SQ;
+        });
+    }, LOD_INTERVAL_MS);
+}
+
 export function Animal({ path, position, normal, rotationY, scale = 1 }: AnimalProps) {
     const { scene, animations } = useGLTF(path) as any
-    // Clone scene to allow multiple instances of the same model with distinct animations
     const clone = useMemo(() => {
         const clonedScene = SkeletonUtils.clone(scene)
         clonedScene.traverse((node: any) => {
@@ -45,26 +67,36 @@ export function Animal({ path, position, normal, rotationY, scale = 1 }: AnimalP
         });
         return clonedScene
     }, [scene])
-    const { ref, actions, names } = useAnimations(animations)
 
+    const { ref, actions, names } = useAnimations(animations)
     const groupRef = useRef<THREE.Group>(null)
     const { camera } = useThree()
 
-    // LOD Computation: Hide animals when they are far away from the player camera
-    // This dramatically saves mobile GPU from evaluating rigged skeleton bounds and shadow maps.
-    useFrame(() => {
-        if (!groupRef.current) return;
-        const distSq = camera.position.distanceToSquared(position);
-        groupRef.current.visible = distSq < 150 * 150; // Render range threshold
-    });
+    // Register with centralized LOD system (replaces per-animal useFrame)
+    useEffect(() => {
+        registeredCamera = camera;
+        if (groupRef.current) {
+            lodRegistry.set(groupRef.current, position);
+        }
+        startLodSystem();
+
+        return () => {
+            if (groupRef.current) {
+                lodRegistry.delete(groupRef.current);
+            }
+            // Stop interval when no animals remain
+            if (lodRegistry.size === 0 && lodInterval) {
+                clearInterval(lodInterval);
+                lodInterval = null;
+            }
+        };
+    }, [camera, position]);
 
     useEffect(() => {
-        // Log available animations for debugging in the browser console
-        if (names.length > 0 && Math.random() < 0.05) { // Log occasionally to avoid spam
+        if (names.length > 0 && Math.random() < 0.05) {
             console.log(`Animations for ${path}:`, names);
         }
 
-        // Play an animation that includes "idle" in its name, or fallback to the first animation
         const actionName = names.find((n: string) => n.toLowerCase().includes('idle')) || names[0]
         if (actionName && actions[actionName]) {
             actions[actionName]?.reset().fadeIn(0.5).play()

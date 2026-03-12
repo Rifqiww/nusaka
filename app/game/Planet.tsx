@@ -88,6 +88,10 @@ export const KOMODO_DATA = generateAnimalData(15, 8812);
 export const ORANGUTAN_DATA = generateAnimalData(15, 9923);
 export const RAJAWALI_DATA = generateAnimalData(15, 1134);
 
+// Pre-allocate a stable quaternion for tree orientation to avoid per-frame alloc
+const _treeUp = new THREE.Vector3(0, 1, 0);
+const _treeQuat = new THREE.Quaternion();
+
 function Trees() {
     const { nodes, materials } = useGLTF('/model/pohon.glb') as any;
     const meshRef = useRef<THREE.InstancedMesh>(null);
@@ -142,7 +146,8 @@ function Trees() {
             const distSq = camera.position.distanceToSquared(tree.position);
 
             dummy.position.copy(tree.position);
-            dummy.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tree.normal);
+            _treeQuat.setFromUnitVectors(_treeUp, tree.normal);
+            dummy.quaternion.copy(_treeQuat);
             dummy.rotateY(tree.rotationY);
 
             // LOD / Culling: if further than 200 units away, swap detail to scale=0 (hide it)
@@ -233,7 +238,7 @@ export default function Planet() {
     return (
         <group>
             <mesh ref={planetRef} position={[0, 0, 0]} receiveShadow>
-                <sphereGeometry args={[PLANET_RADIUS, 128, 128]} />
+                <sphereGeometry args={[PLANET_RADIUS, 64, 64]} />
                 {grassTexture ? (
                     <meshToonMaterial map={grassTexture} color="#ffffff" />
                 ) : (

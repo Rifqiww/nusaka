@@ -4,7 +4,9 @@ import { useEffect, useRef } from 'react';
 import { useJoystickStore } from '@/app/game/store';
 
 export default function GlobalAudio() {
-    const { menuState, isAudioMuted, audioVolume } = useJoystickStore();
+    const menuState = useJoystickStore(s => s.menuState);
+    const isAudioMuted = useJoystickStore(s => s.isAudioMuted);
+    const audioVolume = useJoystickStore(s => s.audioVolume);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const currentBgmIndex = useRef(0);
 

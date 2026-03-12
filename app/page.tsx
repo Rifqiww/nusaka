@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
@@ -23,24 +23,40 @@ const GameScene = dynamic(() => import('./game/GameScene'), { ssr: false })
 
 export default function Home() {
   const router = useRouter()
-  const { hasSaveData, playerName, setPlayerProfile, menuState, setMenuState, setNusadexOpen, isAudioMuted, setAudioMuted } = useJoystickStore()
+
+  // Only subscribe to the specific fields needed to render UI — avoid subscribing
+  // to forward/right/joystick values which change 60x/sec and would re-render the whole page
+  const menuState = useJoystickStore(s => s.menuState)
+  const hasSaveData = useJoystickStore(s => s.hasSaveData)
+  const playerName = useJoystickStore(s => s.playerName)
+  const setPlayerProfile = useJoystickStore(s => s.setPlayerProfile)
+  const setMenuState = useJoystickStore(s => s.setMenuState)
+  const setNusadexOpen = useJoystickStore(s => s.setNusadexOpen)
+
   const { hasNewNotif } = useNotifStore();
   const { startTransition } = useTransitionStore()
 
-  const { nearbyCreature, startBattle } = useBattleStore();
-  const { firstPartner } = useCreatureStore();
+  // Use ref-based access for nearbyCreature so the battle button logic
+  // doesn't force a re-render on every proximity change in useFrame
+  const nearbyCreature = useBattleStore(s => s.nearbyCreature)
+  const startBattle = useBattleStore(s => s.startBattle)
+  const firstPartner = useCreatureStore(s => s.firstPartner)
 
   // Handle keyboard Interaction "E"
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'KeyE' && menuState === 'playing' && nearbyCreature && firstPartner) {
+      if (e.code !== 'KeyE') return;
+      const { menuState } = useJoystickStore.getState();
+      const { nearbyCreature, startBattle } = useBattleStore.getState();
+      const { firstPartner } = useCreatureStore.getState();
+      if (menuState === 'playing' && nearbyCreature && firstPartner) {
         startBattle(nearbyCreature, firstPartner);
-        setMenuState('battle');
+        useJoystickStore.getState().setMenuState('battle');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [menuState, nearbyCreature, firstPartner, startBattle, setMenuState]);
+  }, []); // No deps — reads from store directly
 
   // 1. Check Auth & Save Data on Mount
   useEffect(() => {
@@ -81,13 +97,22 @@ export default function Home() {
     }
   }
 
-  // Joystick handlers
-  const handleJoystickMove = (e: any) => {
+  // Joystick handlers — use getState() to avoid binding to React render cycle
+  const handleJoystickMove = useCallback((e: any) => {
     useJoystickStore.getState().setMovement(e.y, e.x)
-  }
-  const handleJoystickStop = () => {
+  }, [])
+  const handleJoystickStop = useCallback(() => {
     useJoystickStore.getState().setMovement(0, 0)
-  }
+  }, [])
+
+  const handleBattleStart = useCallback(() => {
+    const { nearbyCreature } = useBattleStore.getState();
+    const { firstPartner } = useCreatureStore.getState();
+    if (nearbyCreature && firstPartner) {
+      startBattle(nearbyCreature, firstPartner);
+      setMenuState('battle');
+    }
+  }, [startBattle, setMenuState])
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#87CEEB]">
@@ -205,12 +230,9 @@ export default function Home() {
 
       {/* Interaction Prompt (E to Battle) */}
       {menuState === 'playing' && nearbyCreature && firstPartner && (
-        <div className="absolute bottom-48 md:bottom-12 left-1/2 -translate-x-1/2 z-40 pointer-events-auto animate-bounce w-full sm:w-auto flex justify-center px-6 sm:px-0">
+        <div className="absolute bottom-48 md:bottom-12 left-1/2 -translate-x-1/2 z-40 pointer-events-auto w-full sm:w-auto flex justify-center px-6 sm:px-0">
           <button
-            onClick={() => {
-              startBattle(nearbyCreature, firstPartner);
-              setMenuState('battle');
-            }}
+            onClick={handleBattleStart}
             className="flex items-center justify-center gap-4 bg-[#FEF08A] hover:bg-[#FDE047] border-4 border-[#374151] w-full max-w-[340px] md:w-auto px-6 py-2 md:px-8 md:py-4 rounded-[24px] md:rounded-[32px] shadow-[6px_6px_0_#374151] md:shadow-[4px_4px_0_#374151] hover:-translate-y-1 transition-transform"
           >
             <Sword className="w-10 h-10 md:w-8 md:h-8 text-[#374151]" strokeWidth={2.5} />
@@ -221,7 +243,6 @@ export default function Home() {
           </button>
         </div>
       )}
-
 
       {/* Battle UI Overlay */}
       {menuState === 'battle' && <BattleUI />}

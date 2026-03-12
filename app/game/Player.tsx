@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useMemo, useLayoutEffect } from 'react'
+import { useRef, useEffect, useMemo, useLayoutEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF, useAnimations, Hud, OrthographicCamera } from '@react-three/drei'
 import * as THREE from 'three'
@@ -7,25 +7,57 @@ import { useJoystickStore } from './store'
 import { useBattleStore } from './battleStore'
 import { NUSA_CREATURES } from '../nusadex/creatures'
 
+// --- Pre-compute colliders once at module level (never rebuilt at runtime) ---
+const COLLIDERS = [
+    ...TREES_DATA.map(t => ({ pos: t.position, radius: t.scale * 0.8, type: 'tree' as const, id: null as null })),
+    ...KOMODO_DATA.map(k => ({ pos: k.position, radius: 2.5, type: 'animal' as const, id: 2 })),
+    ...ORANGUTAN_DATA.map(o => ({ pos: o.position, radius: 2.5, type: 'animal' as const, id: 3 })),
+    ...RAJAWALI_DATA.map(r => ({ pos: r.position, radius: 1.5, type: 'animal' as const, id: 1 })),
+];
+
+// --- Pre-allocate reusable THREE objects to prevent per-frame GC pressure ---
+const _surfaceNormal = new THREE.Vector3();
+const _camForward = new THREE.Vector3();
+const _camRight = new THREE.Vector3();
+const _inputDir = new THREE.Vector3();
+const _nextPos = new THREE.Vector3();
+const _p1 = new THREE.Vector3();
+const _p2 = new THREE.Vector3();
+const _lookPoint = new THREE.Vector3();
+const _fwd = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _basisMatrix = new THREE.Matrix4();
+const _pUp = new THREE.Vector3();
+const _currentCamFwd = new THREE.Vector3();
+const _idealCamPos = new THREE.Vector3();
+const _lookTarget = new THREE.Vector3();
+const _tempMatrix = new THREE.Matrix4();
+const _targetCamQuat = new THREE.Quaternion();
+const _slideDir = new THREE.Vector3();
+const _miniCamFwd = new THREE.Vector3();
+const _miniCamRight = new THREE.Vector3();
+const _miniPlayerDir = new THREE.Vector3();
+const _miniMatrix = new THREE.Matrix4();
+// For minimap cam forward
+const _miniCamFwdBase = new THREE.Vector3(0, 0, -1);
+
 function MinimapGlobe({ playerPosition }: { playerPosition: React.MutableRefObject<THREE.Vector3> }) {
     const globeRef = useRef<THREE.Mesh>(null)
     const blipRef = useRef<THREE.Mesh>(null)
 
-    // Instanced mesh refs for performance
     const treeMeshRef = useRef<THREE.InstancedMesh>(null);
     const animalMeshRef = useRef<THREE.InstancedMesh>(null);
     const { camera } = useThree();
 
-    // Compute instanced positions exactly once
-    useLayoutEffect(() => {
-        const dummy = new THREE.Object3D();
+    const _miniDummy = useMemo(() => new THREE.Object3D(), []);
 
+    useLayoutEffect(() => {
         if (treeMeshRef.current) {
             const visibleTrees = TREES_DATA.filter((_, i) => i % 5 === 0);
             visibleTrees.forEach((tree, i) => {
-                dummy.position.copy(tree.position.clone().normalize());
-                dummy.updateMatrix();
-                treeMeshRef.current!.setMatrixAt(i, dummy.matrix);
+                _miniDummy.position.copy(tree.position).normalize();
+                _miniDummy.updateMatrix();
+                treeMeshRef.current!.setMatrixAt(i, _miniDummy.matrix);
             });
             treeMeshRef.current.instanceMatrix.needsUpdate = true;
         }
@@ -33,9 +65,9 @@ function MinimapGlobe({ playerPosition }: { playerPosition: React.MutableRefObje
         if (animalMeshRef.current) {
             const animals = [...KOMODO_DATA, ...ORANGUTAN_DATA, ...RAJAWALI_DATA];
             animals.forEach((animal, i) => {
-                dummy.position.copy(animal.position.clone().normalize());
-                dummy.updateMatrix();
-                animalMeshRef.current!.setMatrixAt(i, dummy.matrix);
+                _miniDummy.position.copy(animal.position).normalize();
+                _miniDummy.updateMatrix();
+                animalMeshRef.current!.setMatrixAt(i, _miniDummy.matrix);
             });
             animalMeshRef.current.instanceMatrix.needsUpdate = true;
         }
@@ -44,34 +76,19 @@ function MinimapGlobe({ playerPosition }: { playerPosition: React.MutableRefObje
     useFrame(() => {
         if (!globeRef.current || !blipRef.current) return;
 
-        // The globe itself rotates to always show the player at the center closest to the camera (+Z)
-        // The globe rotating logic needs to be rock-solid to avoid spinning at poles
-        const playerDir = playerPosition.current.clone().normalize();
+        _miniPlayerDir.copy(playerPosition.current).normalize();
 
-        // 1. Get the direction the camera is looking, projected FLAT onto the planet's surface at the player's position
-        let camForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-        camForward.projectOnPlane(playerDir).normalize();
+        _miniCamFwd.copy(_miniCamFwdBase).applyQuaternion(camera.quaternion);
+        _miniCamFwd.projectOnPlane(_miniPlayerDir).normalize();
 
-        // Handle pole singularity just in case
-        if (camForward.lengthSq() < 0.001) camForward.set(1, 0, 0);
+        if (_miniCamFwd.lengthSq() < 0.001) _miniCamFwd.set(1, 0, 0);
 
-        // 2. Calculate the perpendicular 'right' vector on the planet's surface
-        const camRight = new THREE.Vector3().crossVectors(camForward, playerDir).normalize();
+        _miniCamRight.crossVectors(_miniCamFwd, _miniPlayerDir).normalize();
 
-        // 3. Construct a rotation matrix that represents the globe mapping perfectly into the UI space
-        // In the UI space: 
-        // +X (Right on screen) = camRight
-        // +Y (Up on screen)    = camForward (because camera forward goes UP on the 2D map)
-        // +Z (Towards user)    = playerDir (because we look top-down down the player's normal)
-        const m = new THREE.Matrix4().makeBasis(camRight, camForward, playerDir);
+        _miniMatrix.makeBasis(_miniCamRight, _miniCamFwd, _miniPlayerDir);
+        globeRef.current.quaternion.setFromRotationMatrix(_miniMatrix).invert();
 
-        // We invert it, because we are rotating the GLOBE in the opposite direction 
-        // to keep the player stationary at the top-down +Z center
-        globeRef.current.quaternion.setFromRotationMatrix(m).invert();
-
-        // Player pin always hovers exactly in the center of the minimap
         blipRef.current.position.set(0, 0, 1.15);
-        // Point the cone forwards
         blipRef.current.rotation.set(-Math.PI / 2, 0, 0);
     })
 
@@ -82,31 +99,26 @@ function MinimapGlobe({ playerPosition }: { playerPosition: React.MutableRefObje
             <directionalLight position={[2, 5, 2]} intensity={2} />
 
             <group position={[-window.innerWidth / 100 + 1.5, window.innerHeight / 100 - 1.5, 0]}>
-                {/* Background Globe representing the planet */}
                 <mesh ref={globeRef}>
                     <sphereGeometry args={[1, 32, 32]} />
                     <meshStandardMaterial color="#8BC34A" />
 
-                    {/* Simplified Trees as instanced dots on the globe */}
                     <instancedMesh ref={treeMeshRef} args={[undefined as any, undefined as any, Math.ceil(TREES_DATA.length / 5)]}>
                         <boxGeometry args={[0.05, 0.05, 0.05]} />
                         <meshBasicMaterial color="#2d6a4f" />
                     </instancedMesh>
 
-                    {/* Simplified Animals as instanced dots on the globe */}
                     <instancedMesh ref={animalMeshRef} args={[undefined as any, undefined as any, KOMODO_DATA.length + ORANGUTAN_DATA.length + RAJAWALI_DATA.length]}>
                         <boxGeometry args={[0.08, 0.08, 0.08]} />
                         <meshBasicMaterial color="#FF5722" />
                     </instancedMesh>
                 </mesh>
 
-                {/* Player Blip (static at center, pointing UP representing forward) */}
                 <mesh ref={blipRef}>
                     <coneGeometry args={[0.08, 0.25, 16]} />
                     <meshBasicMaterial color="#FFEB3B" />
                 </mesh>
 
-                {/* Outline ring */}
                 <mesh>
                     <ringGeometry args={[1.1, 1.15, 64]} />
                     <meshBasicMaterial color="rgba(255,255,255,0.5)" transparent />
@@ -116,12 +128,13 @@ function MinimapGlobe({ playerPosition }: { playerPosition: React.MutableRefObje
     )
 }
 
-function CartoonSmoke({ playerPosition, isMoving }: { playerPosition: React.MutableRefObject<THREE.Vector3>, isMoving: boolean }) {
+function CartoonSmoke({ playerPosition, isMovingRef }: { playerPosition: React.MutableRefObject<THREE.Vector3>, isMovingRef: React.MutableRefObject<boolean> }) {
     const COUNT = 25;
     const meshRef = useRef<THREE.InstancedMesh>(null);
     const dummy = useMemo(() => new THREE.Object3D(), []);
+    const _jitter = useMemo(() => new THREE.Vector3(), []);
+    const _up = useMemo(() => new THREE.Vector3(), []);
 
-    // Store particle data
     const particles = useRef([...Array(COUNT)].map(() => ({
         active: false,
         progress: 0,
@@ -137,7 +150,8 @@ function CartoonSmoke({ playerPosition, isMoving }: { playerPosition: React.Muta
     useFrame((_, delta) => {
         if (!meshRef.current) return;
 
-        // Spawning
+        const isMoving = isMovingRef.current;
+
         spawnTimer.current += delta;
         if (isMoving && spawnTimer.current > 0.01) {
             spawnTimer.current = 0;
@@ -145,22 +159,17 @@ function CartoonSmoke({ playerPosition, isMoving }: { playerPosition: React.Muta
             p.active = true;
             p.progress = 0;
 
-            // Spawn at player feet with jitter
-            const jitter = new THREE.Vector3(
+            _jitter.set(
                 (Math.random() - 0.5) * 2,
                 (Math.random() - 0.5) * 2,
                 (Math.random() - 0.5) * 2
             ).normalize();
 
-            const up = playerPosition.current.clone().normalize();
+            _up.copy(playerPosition.current).normalize();
+            p.position.copy(playerPosition.current).addScaledVector(_jitter, 0.5).addScaledVector(_up, 0.2);
 
-            p.position.copy(playerPosition.current).addScaledVector(jitter, 0.5).addScaledVector(up, 0.2);
-
-            // Safety initialization for React hot-reloading (since useRef persists old state)
             if (!p.velocity) p.velocity = new THREE.Vector3();
-
-            // Give outward and upward velocity so they drift apart naturally instead of clustering
-            p.velocity.copy(jitter).multiplyScalar(1.5).addScaledVector(up, 1.0);
+            p.velocity.copy(_jitter).multiplyScalar(1.5).addScaledVector(_up, 1.0);
 
             p.scaleMod = Math.random() * 0.5 + 0.5;
             p.speed = Math.random() * 2.0 + 2.0;
@@ -168,7 +177,6 @@ function CartoonSmoke({ playerPosition, isMoving }: { playerPosition: React.Muta
             particleIndex.current = (particleIndex.current + 1) % COUNT;
         }
 
-        // Updating
         particles.current.forEach((p, i) => {
             if (p.active) {
                 p.progress += delta * p.speed;
@@ -181,12 +189,10 @@ function CartoonSmoke({ playerPosition, isMoving }: { playerPosition: React.Muta
                 } else {
                     if (p.velocity) {
                         p.position.addScaledVector(p.velocity, delta);
-                        // Slow down velocity over time (air drag)
                         p.velocity.multiplyScalar(0.95);
                     }
 
                     const scale = Math.sin(p.progress * Math.PI) * 0.4 * p.scaleMod;
-
                     dummy.position.copy(p.position);
                     dummy.scale.setScalar(scale);
                     dummy.updateMatrix();
@@ -203,7 +209,7 @@ function CartoonSmoke({ playerPosition, isMoving }: { playerPosition: React.Muta
 
     return (
         <instancedMesh ref={meshRef} args={[undefined as any, undefined as any, COUNT]} frustumCulled={false}>
-            <sphereGeometry args={[1, 16, 16]} />
+            <sphereGeometry args={[1, 8, 8]} />
             <meshToonMaterial color="#dddddd" transparent opacity={1} depthWrite={false} />
         </instancedMesh>
     );
@@ -213,29 +219,40 @@ export default function Player() {
     const group = useRef<THREE.Group>(null)
     const lightGroupRef = useRef<THREE.Group>(null)
 
-    // Load model and animations
     const { scene, animations } = useGLTF('/model/nasaka.glb')
     const { actions } = useAnimations(animations, group)
 
-    // Movement state
-    const [movement, setMovement] = useState({ forward: 0, right: 0 })
-    const { forward: jF, right: jR, menuState, isAudioMuted } = useJoystickStore()
+    // --- KEY FIX: Use refs instead of useState for movement to AVOID React re-renders on key input ---
+    // This is the primary cause of the 900ms INP - setState on keydown triggers full React reconciliation
+    const movementRef = useRef({ forward: 0, right: 0 });
+    const isMovingRef = useRef(false);
 
-    // Track player position on sphere
+    const menuState = useJoystickStore(s => s.menuState)
+
     const playerPosition = useRef(new THREE.Vector3(0, PLANET_RADIUS, 0))
-    // Track continuous camera direction to prevent gimbal lock / sudden flips at poles
     const cameraForward = useRef(new THREE.Vector3(0, 0, -1))
-    // Target rotation for smooth turning
     const targetRotation = useRef(new THREE.Quaternion())
 
-    // Walking SFX setup
+    // Animation state (still uses ref to avoid triggering renders)
+    const currentAction = useRef<string | null>(null)
+    const prevIsMovingAnim = useRef(false);
+
+    // Cache resolved animation actions after first lookup to avoid Object.keys() every frame
+    const runningActionRef = useRef<THREE.AnimationAction | null>(null);
+    const idleActionRef = useRef<THREE.AnimationAction | null>(null);
+    const actionsResolvedRef = useRef(false);
+
+    // Throttle proximity check — only update store max 10x/sec to avoid constant React re-renders
+    const proximityTimer = useRef(0);
+    const lastNearbyId = useRef<number | null | undefined>(undefined); // undefined = never set
+
+    // Walking SFX
     const audioRefs = useRef<{ walk1: HTMLAudioElement, walk2: HTMLAudioElement } | null>(null);
     useEffect(() => {
         audioRefs.current = {
             walk1: new Audio('/sfx/walk1.mp3'),
             walk2: new Audio('/sfx/walk2.mp3')
         };
-        // Soft volume for footsteps
         if (audioRefs.current) {
             audioRefs.current.walk1.volume = 0.4;
             audioRefs.current.walk2.volume = 0.4;
@@ -244,23 +261,24 @@ export default function Player() {
     const walkTimer = useRef(0);
     const stepToggle = useRef(false);
 
-    // Handle keyboard
+    // Handle keyboard - now writes to refs instead of setState → zero INP overhead
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            const { menuState } = useJoystickStore.getState();
             if (menuState !== 'playing') return;
             switch (e.code) {
-                case 'KeyW': case 'ArrowUp': setMovement(m => ({ ...m, forward: 1 })); break;
-                case 'KeyS': case 'ArrowDown': setMovement(m => ({ ...m, forward: -1 })); break;
-                case 'KeyA': case 'ArrowLeft': setMovement(m => ({ ...m, right: -1 })); break;
-                case 'KeyD': case 'ArrowRight': setMovement(m => ({ ...m, right: 1 })); break;
+                case 'KeyW': case 'ArrowUp': movementRef.current.forward = 1; break;
+                case 'KeyS': case 'ArrowDown': movementRef.current.forward = -1; break;
+                case 'KeyA': case 'ArrowLeft': movementRef.current.right = -1; break;
+                case 'KeyD': case 'ArrowRight': movementRef.current.right = 1; break;
             }
         }
         const handleKeyUp = (e: KeyboardEvent) => {
             switch (e.code) {
-                case 'KeyW': case 'ArrowUp': setMovement(m => ({ ...m, forward: 0 })); break;
-                case 'KeyS': case 'ArrowDown': setMovement(m => ({ ...m, forward: 0 })); break;
-                case 'KeyA': case 'ArrowLeft': setMovement(m => ({ ...m, right: 0 })); break;
-                case 'KeyD': case 'ArrowRight': setMovement(m => ({ ...m, right: 0 })); break;
+                case 'KeyW': case 'ArrowUp': movementRef.current.forward = 0; break;
+                case 'KeyS': case 'ArrowDown': movementRef.current.forward = 0; break;
+                case 'KeyA': case 'ArrowLeft': movementRef.current.right = 0; break;
+                case 'KeyD': case 'ArrowRight': movementRef.current.right = 0; break;
             }
         }
         window.addEventListener('keydown', handleKeyDown)
@@ -269,46 +287,10 @@ export default function Player() {
             window.removeEventListener('keydown', handleKeyDown)
             window.removeEventListener('keyup', handleKeyUp)
         }
-    }, [menuState])
+    }, []) // No dependency on menuState — we read it inline from store instead
 
-    // Animation logic
-    const currentAction = useRef<string | null>(null)
-
+    // Toon material setup
     useEffect(() => {
-        const isRunning = (movement.forward !== 0 || movement.right !== 0 || jF !== 0 || jR !== 0) && menuState === 'playing';
-
-        // Attempt to play animations based on what's available
-        let runningAction = actions['running'] || actions['Run'] || actions['run'] || actions[Object.keys(actions).find(k => k.toLowerCase().includes('run')) || '']
-        let idleAction = actions['idle'] || actions['Idle'] || actions['idle_01'] || actions[Object.keys(actions).find(k => k.toLowerCase().includes('idle')) || '']
-
-        if (!actions || Object.keys(actions).length === 0) return;
-
-        const targetActionName = isRunning ? 'running' : 'idle';
-        const targetAction = isRunning ? runningAction : idleAction;
-
-        if (currentAction.current !== targetActionName) {
-            // Fade out the old action if it exists
-            const prevActionName = currentAction.current;
-            const prevAction = prevActionName === 'running' ? runningAction : idleAction;
-
-            if (prevAction) {
-                prevAction.fadeOut(0.2);
-            }
-
-            // Fade in the new action
-            if (targetAction) {
-                targetAction.reset().fadeIn(0.2).play();
-                // Speed up the animation slightly for a snappier feel
-                targetAction.setEffectiveTimeScale(1.3);
-            }
-
-            currentAction.current = targetActionName;
-        }
-    }, [movement, jF, jR, actions, menuState])
-
-    // Enhance material with shadows and custom Animal Crossing toon shader
-    useEffect(() => {
-        // Collect primary meshes first to avoid infinite recursion when adding outline meshes
         const meshes: THREE.Mesh[] = [];
         scene.traverse((child) => {
             if (child instanceof THREE.Mesh && !child.userData.isOutline) {
@@ -317,234 +299,222 @@ export default function Player() {
         });
 
         meshes.forEach((child) => {
-            // Remove any old leftover outlines in the cached GLTF scene graph
             const outlinesToRemove: THREE.Object3D[] = [];
             child.children.forEach(c => {
-                if (c.userData && c.userData.isOutline) {
-                    outlinesToRemove.push(c);
-                }
+                if (c.userData && c.userData.isOutline) outlinesToRemove.push(c);
             });
             outlinesToRemove.forEach(c => child.remove(c));
             child.userData.hasOutline = false;
-
             child.castShadow = true;
             child.receiveShadow = true;
 
-            // Replace default material with a clean Toon Shading material (Animal Crossing style)
             if (child.material) {
                 const oldMat = child.material as THREE.MeshStandardMaterial;
-
-                // Prevent WebGL texture atlas bleeding (red background leaking into UV seams)
                 if (oldMat.map) {
                     oldMat.map.generateMipmaps = false;
-                    oldMat.map.minFilter = THREE.NearestFilter; // Point filtering entirely stops sub-pixel bleeding
-                    oldMat.map.magFilter = THREE.NearestFilter; // Point filtering entirely stops sub-pixel bleeding
-                    oldMat.map.anisotropy = 1; // Disable anisotropic filtering to prevent wider sampling footprints
+                    oldMat.map.minFilter = THREE.NearestFilter;
+                    oldMat.map.magFilter = THREE.NearestFilter;
+                    oldMat.map.anisotropy = 1;
                     oldMat.map.needsUpdate = true;
                 }
-
                 const newMat = new THREE.MeshToonMaterial({
                     map: oldMat.map,
                     color: oldMat.color,
-                    // If the model has red lines, it's a transparency sorting issue in WebGL. 
-                    // We FORCE alpha clipping (alphaTest) instead of alpha blending (transparent).
                     transparent: false,
                     depthWrite: true,
                     alphaTest: 0.5,
                     side: oldMat.side !== undefined ? oldMat.side : THREE.DoubleSide
                 });
-
                 child.material = newMat;
             }
         });
     }, [scene])
 
-    // Update loop
     const { camera } = useThree()
 
-    useFrame((state, delta) => {
+    useFrame((_, delta) => {
         if (!group.current) return;
 
-        const { menuState } = useJoystickStore.getState();
-        const speed = 12;
+        // Read store state once per frame (not via hook subscription)
+        const { menuState: currentMenuState, forward: jF, right: jR } = useJoystickStore.getState();
 
-        // Combine Keyboard and Joystick inputs
-        const joystick = useJoystickStore.getState();
-        const combinedForward = movement.forward + joystick.forward;
-        const combinedRight = movement.right + joystick.right;
+        const combinedForward = movementRef.current.forward + jF;
+        const combinedRight = movementRef.current.right + jR;
 
         const isMoving = combinedForward !== 0 || combinedRight !== 0;
+        isMovingRef.current = isMoving && currentMenuState === 'playing';
+
+        // --- Animation switching ---
+        // Resolve actions once, cache in refs to avoid Object.keys() every frame
+        if (!actionsResolvedRef.current && actions && Object.keys(actions).length > 0) {
+            const keys = Object.keys(actions);
+            runningActionRef.current = actions['running'] || actions['Run'] || actions['run'] ||
+                actions[keys.find(k => k.toLowerCase().includes('run')) || ''] || null;
+            idleActionRef.current = actions['idle'] || actions['Idle'] || actions['idle_01'] ||
+                actions[keys.find(k => k.toLowerCase().includes('idle')) || ''] || null;
+            actionsResolvedRef.current = true;
+        }
+
+        if (actionsResolvedRef.current) {
+            const shouldRun = isMoving && currentMenuState === 'playing';
+            if (shouldRun !== prevIsMovingAnim.current) {
+                prevIsMovingAnim.current = shouldRun;
+                const targetActionName = shouldRun ? 'running' : 'idle';
+                const targetAction = shouldRun ? runningActionRef.current : idleActionRef.current;
+                const prevAction = shouldRun ? idleActionRef.current : runningActionRef.current;
+
+                if (currentAction.current !== targetActionName) {
+                    if (prevAction) prevAction.fadeOut(0.2);
+                    if (targetAction) {
+                        targetAction.reset().fadeIn(0.2).play();
+                        targetAction.setEffectiveTimeScale(1.3);
+                    }
+                    currentAction.current = targetActionName;
+                }
+            }
+        }
 
         // --- Walking SFX ---
-        if (isMoving && menuState === 'playing') {
+        if (isMoving && currentMenuState === 'playing') {
             walkTimer.current += delta;
-            // Play a footstep every 0.35s while moving Fast step pace
             if (walkTimer.current > 0.35) {
                 walkTimer.current = 0;
                 if (audioRefs.current) {
                     const stepAudio = stepToggle.current ? audioRefs.current.walk1 : audioRefs.current.walk2;
                     stepToggle.current = !stepToggle.current;
                     stepAudio.currentTime = 0;
-                    stepAudio.play().catch(() => { }); // Catch autoplay restrictions gracefully
+                    stepAudio.play().catch(() => { });
                 }
             }
         } else {
-            walkTimer.current = 0; // Reset step timing when stopping
+            walkTimer.current = 0;
         }
 
-        // 1. Calculate input direction relative to the camera
-        // Camera's forward vector projected onto the tangent plane of the sphere at player's position
-        const surfaceNormal = playerPosition.current.clone().normalize();
-        const camForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-        camForward.projectOnPlane(surfaceNormal).normalize();
-        const camRight = new THREE.Vector3().crossVectors(camForward, surfaceNormal).normalize();
+        const speed = 12;
 
-        const inputDir = new THREE.Vector3()
-            .addScaledVector(camForward, combinedForward)
-            .addScaledVector(camRight, combinedRight);
+        // --- Movement & collision (all reused vectors, zero GC) ---
+        _surfaceNormal.copy(playerPosition.current).normalize();
+        _camForward.set(0, 0, -1).applyQuaternion(camera.quaternion);
+        _camForward.projectOnPlane(_surfaceNormal).normalize();
+        _camRight.crossVectors(_camForward, _surfaceNormal).normalize();
 
-        if (inputDir.lengthSq() > 0) {
-            inputDir.normalize();
-        }
+        _inputDir.set(0, 0, 0)
+            .addScaledVector(_camForward, combinedForward)
+            .addScaledVector(_camRight, combinedRight);
 
-        // 2. Move player position along the sphere
-        if (isMoving && menuState === 'playing') {
-            const nextPos = playerPosition.current.clone().addScaledVector(inputDir, speed * delta);
-            nextPos.normalize().multiplyScalar(PLANET_RADIUS);
+        if (_inputDir.lengthSq() > 0) _inputDir.normalize();
 
-            // Check collisions against a unified list of solid objects
-            const colliders = [
-                ...TREES_DATA.map(t => ({ pos: t.position, radius: t.scale * 0.8, type: 'tree', id: null })),
-                ...KOMODO_DATA.map(k => ({ pos: k.position, radius: 2.5, type: 'animal', id: 2 })), // ID 2 is Komodo
-                ...ORANGUTAN_DATA.map(o => ({ pos: o.position, radius: 2.5, type: 'animal', id: 3 })), // ID 3 is OrangUtan
-                ...RAJAWALI_DATA.map(r => ({ pos: r.position, radius: 1.5, type: 'animal', id: 1 })) // ID 1 is Elang
-            ];
+        if (isMoving && currentMenuState === 'playing') {
+            _nextPos.copy(playerPosition.current).addScaledVector(_inputDir, speed * delta);
+            _nextPos.normalize().multiplyScalar(PLANET_RADIUS);
 
             let closestAnimalId: number | null = null;
             let closestDistSq = Infinity;
 
-            for (let i = 0; i < colliders.length; i++) {
-                const col = colliders[i];
-                // Ignore height diffs for simple sphere pushing
-                const p1 = nextPos.clone().normalize();
-                const p2 = col.pos.clone().normalize();
-                const distSq = p1.distanceToSquared(p2) * PLANET_RADIUS * PLANET_RADIUS;
+            for (let i = 0; i < COLLIDERS.length; i++) {
+                const col = COLLIDERS[i];
+                _p1.copy(_nextPos).normalize();
+                _p2.copy(col.pos).normalize();
+                const distSq = _p1.distanceToSquared(_p2) * PLANET_RADIUS * PLANET_RADIUS;
 
-                // Track closest animal for battle
                 if (col.type === 'animal' && distSq < 15 * 15 && distSq < closestDistSq) {
                     closestDistSq = distSq;
                     closestAnimalId = col.id;
                 }
 
                 if (distSq < col.radius * col.radius) {
-                    const slideDir = nextPos.clone().sub(col.pos).normalize();
-                    nextPos.addScaledVector(slideDir, speed * delta);
-                    nextPos.normalize().multiplyScalar(PLANET_RADIUS);
-
-                    // We don't break here so we can continue checking all animals for proximity
+                    _slideDir.copy(_nextPos).sub(col.pos).normalize();
+                    _nextPos.addScaledVector(_slideDir, speed * delta);
+                    _nextPos.normalize().multiplyScalar(PLANET_RADIUS);
                 }
             }
 
-            // Update battle store with the closest target
-            const battleStore = useBattleStore.getState();
-            if (closestAnimalId !== null) {
-                const matchingCreature = NUSA_CREATURES.find(c => c.id === closestAnimalId) || null;
-                if (battleStore.nearbyCreature?.id !== matchingCreature?.id) {
-                    battleStore.setNearbyCreature(matchingCreature);
+            // --- Throttled proximity update (max 10x/sec) ---
+            // Avoids calling setNearbyCreature (Zustand) 60x/sec which re-renders page.tsx
+            proximityTimer.current += delta;
+            if (proximityTimer.current >= 0.1) {
+                proximityTimer.current = 0;
+                if (closestAnimalId !== lastNearbyId.current) {
+                    lastNearbyId.current = closestAnimalId;
+                    const battleStore = useBattleStore.getState();
+                    if (closestAnimalId !== null) {
+                        const matchingCreature = NUSA_CREATURES.find(c => c.id === closestAnimalId) || null;
+                        battleStore.setNearbyCreature(matchingCreature);
+                    } else {
+                        battleStore.setNearbyCreature(null);
+                    }
                 }
-            } else if (battleStore.nearbyCreature !== null) {
-                battleStore.setNearbyCreature(null);
             }
 
-            playerPosition.current.copy(nextPos);
+            playerPosition.current.copy(_nextPos);
 
-            // New up vector after moving
-            const newUp = playerPosition.current.clone().normalize();
+            const newUp = _surfaceNormal.copy(playerPosition.current).normalize(); // reuse _surfaceNormal as newUp
+            _lookPoint.copy(playerPosition.current).add(_inputDir);
+            _fwd.copy(_lookPoint).sub(playerPosition.current).normalize();
+            _right.crossVectors(newUp, _fwd).normalize();
+            _fwd.crossVectors(_right, newUp).normalize();
 
-            // To make character look globally towards inputDir while keeping feet on the ground:
-            // Calculate a point slightly ahead of player in the direction of movement
-            const lookPoint = playerPosition.current.clone().add(inputDir);
-
-            // Recompute orthogonal basis exactly like lookAt does, but manually to maintain control
-            const forward = lookPoint.clone().sub(playerPosition.current).normalize();
-            const right = new THREE.Vector3().crossVectors(newUp, forward).normalize();
-            // recalculate forward to ensure it's perpendicular to newUp
-            forward.crossVectors(right, newUp).normalize();
-
-            const matrix = new THREE.Matrix4().makeBasis(right, newUp, forward);
-            targetRotation.current.setFromRotationMatrix(matrix);
+            _basisMatrix.makeBasis(_right, newUp, _fwd);
+            targetRotation.current.setFromRotationMatrix(_basisMatrix);
         } else {
-            // When not moving, keep feet on the ground but maintain the same yaw (look direction)
-            const currentForward = new THREE.Vector3(0, 0, 1).applyQuaternion(group.current.quaternion);
-            const newUp = playerPosition.current.clone().normalize();
+            _fwd.set(0, 0, 1).applyQuaternion(group.current.quaternion);
+            const newUp = _surfaceNormal.copy(playerPosition.current).normalize();
+            _right.crossVectors(newUp, _fwd).normalize();
+            _fwd.crossVectors(_right, newUp).normalize();
 
-            const right = new THREE.Vector3().crossVectors(newUp, currentForward).normalize();
-            const forward = new THREE.Vector3().crossVectors(right, newUp).normalize();
-
-            const matrix = new THREE.Matrix4().makeBasis(right, newUp, forward);
-            targetRotation.current.setFromRotationMatrix(matrix);
+            _basisMatrix.makeBasis(_right, newUp, _fwd);
+            targetRotation.current.setFromRotationMatrix(_basisMatrix);
         }
 
         group.current.position.copy(playerPosition.current);
         group.current.quaternion.slerp(targetRotation.current, 15 * delta);
 
-        // 3. Update camera position to follow player (Animal Crossing style)
-        const IsCreating = menuState === 'create_character';
+        // --- Camera ---
+        const IsCreating = currentMenuState === 'create_character';
+        const offsetDistance = IsCreating ? 6 : 15;
+        const offsetHeight = IsCreating ? 1.5 : 10;
 
-        // Camera stays at a fixed orientation relative to the world, just moving along the sphere surface
-        const offsetDistance = IsCreating ? 6 : 15; // Pulled closer for character creation
-        const offsetHeight = IsCreating ? 1.5 : 10;   // Lower angle for character creation
+        _pUp.copy(playerPosition.current).normalize();
 
-        const pUp = playerPosition.current.clone().normalize();
-
-        // Smooth camera rotation using parallel transport to avoid 180-degree flips at the poles
-        let currentCamForward = cameraForward.current.clone().projectOnPlane(pUp).normalize();
-
-        // Edge case fallback
-        if (currentCamForward.lengthSq() < 0.001) {
-            currentCamForward = new THREE.Vector3(1, 0, 0).projectOnPlane(pUp).normalize();
+        _currentCamFwd.copy(cameraForward.current).projectOnPlane(_pUp).normalize();
+        if (_currentCamFwd.lengthSq() < 0.001) {
+            _currentCamFwd.set(1, 0, 0).projectOnPlane(_pUp).normalize();
         }
 
-        // Only rotate the camera slightly when moving to follow behind the player organically
         if (isMoving && !IsCreating) {
-            currentCamForward.lerp(inputDir, 1 * delta).normalize();
+            _currentCamFwd.lerp(_inputDir, 1 * delta).normalize();
         }
 
-        cameraForward.current.copy(currentCamForward);
+        cameraForward.current.copy(_currentCamFwd);
 
-        const idealCameraPos = playerPosition.current.clone()
-            .addScaledVector(currentCamForward, -offsetDistance) // Move behind the player (South)
-            .addScaledVector(pUp, offsetHeight);        // Move up away from the surface
+        _idealCamPos.copy(playerPosition.current)
+            .addScaledVector(_currentCamFwd, -offsetDistance)
+            .addScaledVector(_pUp, offsetHeight);
+        camera.position.lerp(_idealCamPos, 5 * delta);
 
-        camera.position.lerp(idealCameraPos, 5 * delta);
+        _lookTarget.copy(playerPosition.current)
+            .addScaledVector(_pUp, IsCreating ? 1.5 : 1)
+            .addScaledVector(_currentCamFwd, IsCreating ? 0 : 4);
 
-        // Camera smoothly looks at the player (slightly above)
-        // Adjust look target so player is centered in character creation
-        const lookTarget = playerPosition.current.clone()
-            .addScaledVector(pUp, IsCreating ? 1.5 : 1)
-            .addScaledVector(currentCamForward, IsCreating ? 0 : 4);
+        _tempMatrix.lookAt(camera.position, _lookTarget, _pUp);
+        _targetCamQuat.setFromRotationMatrix(_tempMatrix);
+        camera.quaternion.slerp(_targetCamQuat, 5 * delta);
 
-        const tempMatrix = new THREE.Matrix4().lookAt(camera.position, lookTarget, pUp);
-        const targetCamQuat = new THREE.Quaternion().setFromRotationMatrix(tempMatrix);
-        camera.quaternion.slerp(targetCamQuat, 5 * delta);
-
-        // 4. Update dynamic sun light for shadows
+        // --- Sun light ---
         if (lightGroupRef.current) {
             lightGroupRef.current.position.copy(playerPosition.current);
-            // Align local Y axis to the surface normal, so the light always shines down
-            lightGroupRef.current.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), pUp);
+            lightGroupRef.current.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), _pUp);
         }
     })
 
     return (
         <>
-            {/* Dynamic Sun Light that follows the player on the sphere */}
             <group ref={lightGroupRef}>
                 <directionalLight
                     position={[30, 40, 20]}
                     intensity={2.5}
                     castShadow
-                    shadow-mapSize={[1024, 1024]}
+                    shadow-mapSize={[512, 512]}
                     shadow-camera-left={-40}
                     shadow-camera-right={40}
                     shadow-camera-top={40}
@@ -561,7 +531,7 @@ export default function Player() {
 
             <CartoonSmoke
                 playerPosition={playerPosition}
-                isMoving={menuState === 'playing' && (movement.forward !== 0 || movement.right !== 0 || useJoystickStore.getState().forward !== 0 || useJoystickStore.getState().right !== 0)}
+                isMovingRef={isMovingRef}
             />
 
             {menuState === 'playing' && <MinimapGlobe playerPosition={playerPosition} />}

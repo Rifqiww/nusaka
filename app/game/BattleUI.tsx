@@ -25,7 +25,7 @@ export default function BattleUI() {
         endBattle
     } = useBattleStore();
 
-    const { setMenuState } = useJoystickStore();
+    const setMenuState = useJoystickStore(s => s.setMenuState);
     const { setFirstPartner, capturedCreatures } = useCreatureStore(); // We'll just push to array manually or use setFirstPartner for simplicity if they don't have it.
 
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -124,9 +124,7 @@ export default function BattleUI() {
             // Baseline 20% catch rate, up to 100% if 1 HP
             if (roll < chance + 0.2) {
                 setPhase('catch_success', `Gotcha! ${wildCreature.name} was caught!`);
-                useCreatureStore.setState(state => ({
-                    capturedCreatures: [...state.capturedCreatures, { ...wildCreature, level: 1, exp: 0 }]
-                }));
+                useCreatureStore.getState().addCreature({ ...wildCreature, level: 1, exp: 0 });
                 setTimeout(() => {
                     endBattle();
                     setMenuState('playing');
@@ -203,7 +201,7 @@ export default function BattleUI() {
             <div className="min-h-[160px] sm:h-48 bg-[#E5E7EB] border-t-[6px] sm:border-t-8 border-[#374151] flex flex-col sm:flex-row items-center sm:items-stretch sm:justify-start p-2 sm:p-0">
                 {/* Left: Message Log */}
                 <div className="w-[calc(100%-0.5rem)] sm:flex-1 bg-white m-1 sm:m-4 border-[3px] sm:border-4 border-[#374151] rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-inner flex items-center overflow-hidden">
-                    <p className="text-2xl sm:text-4xl text-[#374151] font-black uppercase tracking-wide leading-tight sm:leading-relaxed animate-[pulse_1s_ease-in-out_infinite]">{message}</p>
+                    <p className="text-2xl sm:text-4xl text-[#374151] font-black uppercase tracking-wide leading-tight sm:leading-relaxed animate-pulse">{message}</p>
                 </div>
 
                 {/* Right: Command Buttons */}

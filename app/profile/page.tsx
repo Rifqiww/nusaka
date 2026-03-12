@@ -36,7 +36,7 @@ const ElementIcon = ({ element, className }: { element: string; className?: stri
 export default function ProfilePage() {
   const router = useRouter();
   const { startTransition } = useTransitionStore();
-  const { playerName } = useJoystickStore();
+  const playerName = useJoystickStore(s => s.playerName);
   const capturedCreatures = useCreatureStore((state: CreatureState) => state.capturedCreatures);
   const firstPartner = useCreatureStore((state: CreatureState) => state.firstPartner);
 

@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { Power, Search, Loader2, ChevronLeft } from "lucide-react";
 import { useJoystickStore } from "../game/store";
 import { NUSA_CREATURES, type Creature } from "./creatures";
-import { useCreatureStore } from "./store";
+import { useCreatureStore, type PartnerCreature } from "./store";
 import { useNotifStore } from "./notifStore";
 
 const Creature3D = dynamic(() => import("./Creature3D"), {
@@ -16,12 +16,13 @@ const Creature3D = dynamic(() => import("./Creature3D"), {
 });
 
 export default function NusadexPopup() {
-  const { isNusadexOpen, setNusadexOpen } = useJoystickStore();
+  const isNusadexOpen = useJoystickStore((s) => s.isNusadexOpen);
+  const setNusadexOpen = useJoystickStore((s) => s.setNusadexOpen);
   const { capturedCreatures, seenIds, markAsSeen } = useCreatureStore();
   const { setHasNewNotif } = useNotifStore();
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCreature, setSelectedCreature] = useState<any | null>(null);
+  const [selectedCreature, setSelectedCreature] = useState<PartnerCreature | null>(null);
   const [view, setView] = useState<"list" | "detail">("list");
   const [isClosing, setIsClosing] = useState(false);
 
@@ -165,7 +166,7 @@ export default function NusadexPopup() {
                       const isNew = !seenIds.includes(creature.id);
                       return (
                         <div
-                          key={creature.id}
+                          key={creature.instanceId || `${creature.id}-${i}`}
                           onClick={() => handleSelect(creature)}
                           className={`group flex flex-col bg-white border-[3px] border-[#374151] rounded-2xl transition-all cursor-pointer p-3 overflow-hidden shadow-[4px_4px_0_#374151] hover:translate-y-1 hover:translate-x-1 hover:shadow-[0_0_0_#374151] relative ${isNew ? "ring-4 ring-red-400 ring-inset" : ""}`}
                         >

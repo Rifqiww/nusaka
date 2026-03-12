@@ -5,7 +5,10 @@ import { useJoystickStore } from '@/app/game/store';
 import { Volume2, VolumeX, Volume1, Volume } from 'lucide-react';
 
 export default function AudioPlayerControl() {
-    const { isAudioMuted, setAudioMuted, audioVolume, setAudioVolume } = useJoystickStore();
+    const isAudioMuted = useJoystickStore(s => s.isAudioMuted);
+    const setAudioMuted = useJoystickStore(s => s.setAudioMuted);
+    const audioVolume = useJoystickStore(s => s.audioVolume);
+    const setAudioVolume = useJoystickStore(s => s.setAudioVolume);
     const [isHovered, setIsHovered] = useState(false);
 
     const toggleMute = () => {

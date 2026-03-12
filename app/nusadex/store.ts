@@ -10,9 +10,11 @@ export interface CreatureState {
     capturedCreatures: PartnerCreature[];
     firstPartner: PartnerCreature | null;
     hasChosenPartner: boolean;
+    seenIds: number[];
     addCreature: (creature: PartnerCreature) => void;
     updateCreature: (creature: PartnerCreature) => void;
     setFirstPartner: (creature: PartnerCreature) => void;
+    markAsSeen: (id: number) => void;
 }
 
 export const useCreatureStore = create<CreatureState>()(
@@ -21,6 +23,7 @@ export const useCreatureStore = create<CreatureState>()(
             capturedCreatures: [],
             firstPartner: null,
             hasChosenPartner: false,
+            seenIds: [],
             addCreature: (creature) =>
                 set((state) => ({
                     capturedCreatures: [...state.capturedCreatures, creature],
@@ -37,8 +40,15 @@ export const useCreatureStore = create<CreatureState>()(
                     firstPartner: starter,
                     hasChosenPartner: true,
                     capturedCreatures: [starter],
+                    seenIds: [starter.id], // Starters are seen by default
                 }));
             },
+            markAsSeen: (id) =>
+                set((state) => ({
+                    seenIds: state.seenIds.includes(id)
+                        ? state.seenIds
+                        : [...state.seenIds, id],
+                })),
         }),
         {
             name: 'creature-storage',

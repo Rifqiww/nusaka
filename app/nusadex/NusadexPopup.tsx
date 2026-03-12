@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import { Power, Search, Loader2, ChevronLeft } from "lucide-react";
 import { useJoystickStore } from "../game/store";
 import { NUSA_CREATURES, type Creature } from "./creatures";
+import { useCreatureStore } from "./store";
+import { useNotifStore } from "./notifStore";
 
 const Creature3D = dynamic(() => import("./Creature3D"), {
   ssr: false,
@@ -15,10 +17,11 @@ const Creature3D = dynamic(() => import("./Creature3D"), {
 
 export default function NusadexPopup() {
   const { isNusadexOpen, setNusadexOpen } = useJoystickStore();
+  const { capturedCreatures, seenIds, markAsSeen } = useCreatureStore();
+  const { setHasNewNotif } = useNotifStore();
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCreature, setSelectedCreature] = useState<Creature | null>(
-    null,
-  );
+  const [selectedCreature, setSelectedCreature] = useState<any | null>(null);
   const [view, setView] = useState<"list" | "detail">("list");
   const [isClosing, setIsClosing] = useState(false);
 
@@ -32,19 +35,24 @@ export default function NusadexPopup() {
       setIsVisible(true);
       setIsClosing(false);
     } else if (hasBeenOpened) {
-      // If it was already open and now closed via store, trigger animation
-      // (This covers closing via clicking the backdrop or external calls)
       if (!isClosing) handleClose();
     }
   }, [isNusadexOpen]);
 
+  // Update overall notification status when opening/closing or when caught
+  useEffect(() => {
+    const hasUnseen = capturedCreatures.some((c) => !seenIds.includes(c.id));
+    setHasNewNotif(hasUnseen);
+  }, [capturedCreatures, seenIds]);
+
   const filteredCreatures = useMemo(() => {
-    return NUSA_CREATURES.filter(
+    // Only show creatures that have been captured
+    return capturedCreatures.filter(
       (c) =>
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.id.toString().padStart(4, "0").includes(searchTerm),
     );
-  }, [searchTerm]);
+  }, [capturedCreatures, searchTerm]);
 
   const handleClose = () => {
     if (isClosing) return;
@@ -58,9 +66,10 @@ export default function NusadexPopup() {
     }, 450);
   };
 
-  const handleSelect = (creature: Creature) => {
+  const handleSelect = (creature: any) => {
     setSelectedCreature(creature);
     setView("detail");
+    markAsSeen(creature.id);
   };
 
   // Lazy load only after first interaction to save initial page load performance
@@ -110,7 +119,10 @@ export default function NusadexPopup() {
                   onClick={() => setView("list")}
                   className="p-1 hover:bg-[#374151]/10 rounded-full transition-transform active:scale-90 cursor-pointer"
                 >
-                  <ChevronLeft className="w-8 h-8 text-[#374151]" strokeWidth={3} />
+                  <ChevronLeft
+                    className="w-8 h-8 text-[#374151]"
+                    strokeWidth={3}
+                  />
                 </button>
               )}
               <h2 className="text-4xl font-black text-[#374151] tracking-wider drop-shadow-[2px_2px_0_#FFF]">
@@ -133,7 +145,10 @@ export default function NusadexPopup() {
               <div className="flex flex-col h-full px-6 animate-in fade-in slide-in-from-left duration-300">
                 <div className="relative mb-6">
                   <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                    <Search className="w-6 h-6 text-[#374151]" strokeWidth={3} />
+                    <Search
+                      className="w-6 h-6 text-[#374151]"
+                      strokeWidth={3}
+                    />
                   </div>
                   <input
                     type="text"
@@ -146,32 +161,44 @@ export default function NusadexPopup() {
 
                 <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar pb-10">
                   <div className="grid grid-cols-2 gap-4">
-                    {filteredCreatures.map((creature) => (
-                      <div
-                        key={creature.id}
-                        onClick={() => handleSelect(creature)}
-                        className="group flex flex-col bg-white border-[3px] border-[#374151] rounded-2xl transition-all cursor-pointer p-3 overflow-hidden shadow-[4px_4px_0_#374151] hover:translate-y-1 hover:translate-x-1 hover:shadow-[0_0_0_#374151]"
-                      >
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-xl font-bold text-[#374151] bg-[#FFE4A0] border-2 border-[#374151] px-2 py-0.5 rounded-md shadow-[2px_2px_0_#374151] rotate-[-2deg]">
-                            #{creature.id.toString().padStart(3, '0')}
-                          </span>
+                    {filteredCreatures.map((creature, i) => {
+                      const isNew = !seenIds.includes(creature.id);
+                      return (
+                        <div
+                          key={creature.id}
+                          onClick={() => handleSelect(creature)}
+                          className={`group flex flex-col bg-white border-[3px] border-[#374151] rounded-2xl transition-all cursor-pointer p-3 overflow-hidden shadow-[4px_4px_0_#374151] hover:translate-y-1 hover:translate-x-1 hover:shadow-[0_0_0_#374151] relative ${isNew ? "ring-4 ring-red-400 ring-inset" : ""}`}
+                        >
+                          {isNew && (
+                            <div className="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full border-2 border-[#374151] z-20 animate-bounce shadow-[1px_1px_0_#374151]">
+                              NEW
+                            </div>
+                          )}
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-xl font-bold text-[#374151] bg-[#FFE4A0] border-2 border-[#374151] px-2 py-0.5 rounded-md shadow-[2px_2px_0_#374151] rotate-[-2deg]">
+                              #{(i + 1).toString().padStart(3, "0")}
+                            </span>
+                          </div>
+                          <div className="relative w-full aspect-square bg-[#E5F6FD] border-[3px] border-[#374151] rounded-xl flex items-center justify-center overflow-hidden pointer-events-none">
+                            <Suspense
+                              fallback={
+                                <Loader2 className="w-6 h-6 animate-spin text-[#374151]" />
+                              }
+                            >
+                              <Creature3D
+                                modelUrl={creature.modelUrl}
+                                autoRotate={false}
+                                scale={creature.scale || 1}
+                                position={creature.position || [0, 0, 0]}
+                              />
+                            </Suspense>
+                          </div>
+                          <h3 className="text-[26px] text-[#374151] font-black mt-3 text-center truncate w-full tracking-wide">
+                            {creature.name}
+                          </h3>
                         </div>
-                        <div className="relative w-full aspect-square bg-[#E5F6FD] border-[3px] border-[#374151] rounded-xl flex items-center justify-center overflow-hidden pointer-events-none">
-                          <Suspense fallback={<Loader2 className="w-6 h-6 animate-spin text-[#374151]" />}>
-                            <Creature3D
-                              modelUrl={creature.modelUrl}
-                              autoRotate={false}
-                              scale={creature.scale || 1}
-                              position={creature.position || [0, 0, 0]}
-                            />
-                          </Suspense>
-                        </div>
-                        <h3 className="text-[26px] text-[#374151] font-black mt-3 text-center truncate w-full tracking-wide">
-                          {creature.name}
-                        </h3>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -181,13 +208,15 @@ export default function NusadexPopup() {
             {view === "detail" && selectedCreature && (
               <div className="flex flex-col h-full px-6 animate-in fade-in slide-in-from-right duration-300 overflow-y-auto custom-scrollbar pb-8 pt-2">
                 <h2 className="text-[3.5rem] text-[#374151] font-black leading-none uppercase drop-shadow-[2px_2px_0_#fff]">
-                  {selectedCreature.name}
+                  {selectedCreature.nickname || selectedCreature.name}
                 </h2>
                 <div className="flex items-center justify-between mb-4 mt-2">
                   <span
-                    className={`text-2xl text-[#374151] font-bold px-4 border-[3px] border-[#374151] rounded-xl shadow-[2px_2px_0_#374151] rotate-[-2deg] flex items-center justify-center gap-2 h-8 ${selectedCreature.element === 'Tanah' ? 'bg-[#D97706]/20' : selectedCreature.element === 'Angin' ? 'bg-[#93C5FD]/20' : 'bg-[#3B82F6]/20'}`}
+                    className={`text-2xl text-[#374151] font-bold px-4 border-[3px] border-[#374151] rounded-xl shadow-[2px_2px_0_#374151] rotate-[-2deg] flex items-center justify-center gap-2 h-8 ${selectedCreature.element === "Tanah" ? "bg-[#D97706]/20" : selectedCreature.element === "Angin" ? "bg-[#93C5FD]/20" : "bg-[#3B82F6]/20"}`}
                   >
-                    <span className="opacity-60 text-lg uppercase">Elemen:</span>
+                    <span className="opacity-60 text-lg uppercase">
+                      Elemen:
+                    </span>
                     {selectedCreature.element}
                   </span>
                   <span className="text-4xl font-black text-[#374151]/60">
@@ -200,7 +229,9 @@ export default function NusadexPopup() {
                   {/* Decorative background pattern */}
                   <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#374151_2px,transparent_2px)] [background-size:16px_16px]"></div>
                   <Suspense
-                    fallback={<Loader2 className="w-8 h-8 animate-spin text-[#374151]" />}
+                    fallback={
+                      <Loader2 className="w-8 h-8 animate-spin text-[#374151]" />
+                    }
                   >
                     <Creature3D
                       key={selectedCreature.id}

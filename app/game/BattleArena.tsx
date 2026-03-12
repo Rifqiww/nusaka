@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useEffect, Suspense } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { useGLTF, useAnimations, ContactShadows, Center } from "@react-three/drei";
 import * as THREE from "three";
 import { SkeletonUtils } from "three-stdlib";
@@ -101,6 +101,63 @@ function Model({
     );
 }
 
+function SceneContent({
+    playerUrl,
+    playerScale,
+    playerAnim,
+    enemyUrl,
+    enemyScale,
+    enemyAnim
+}: any) {
+    const { viewport, camera } = useThree();
+    const isPortrait = viewport.aspect < 1;
+
+    useEffect(() => {
+        if (camera instanceof THREE.PerspectiveCamera) {
+            camera.fov = isPortrait ? 45 : 35;
+            camera.position.set(isPortrait ? 5 : 4, isPortrait ? 8 : 6, isPortrait ? 32 : 26);
+            camera.lookAt(0, 0, 5);
+            camera.updateProjectionMatrix();
+        }
+    }, [isPortrait, camera]);
+
+    return (
+        <>
+            <ambientLight intensity={1.5} />
+            <directionalLight position={[10, 15, 10]} intensity={2.5} castShadow shadow-bias={-0.001} />
+            <directionalLight position={[-10, 5, -10]} intensity={1.5} />
+
+            {/* The Arena Ground / Platform */}
+            <mesh receiveShadow position={[0, -0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <circleGeometry args={[20, 64]} />
+                <meshToonMaterial color="#689F38" />
+            </mesh>
+
+            {/* Subtle grass darker ring */}
+            <mesh receiveShadow position={[0, -0.15, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <circleGeometry args={[22, 64]} />
+                <meshToonMaterial color="#558B2F" />
+            </mesh>
+
+            {/* Player Position (Bottom Left - moved slightly for portrait) */}
+            <group position={[isPortrait ? 4 : 2, 0, 15]}>
+                <Suspense fallback={null}>
+                    <Model url={playerUrl} modelScale={playerScale} animationName={playerAnim} facing="right" />
+                </Suspense>
+            </group>
+
+            {/* Enemy Position (Top Right - moved slightly for portrait) */}
+            <group position={[isPortrait ? -6 : -10, 0, -5]}>
+                <Suspense fallback={null}>
+                    <Model url={enemyUrl} modelScale={enemyScale} animationName={enemyAnim} facing="left" />
+                </Suspense>
+            </group>
+
+            <ContactShadows opacity={0.4} scale={30} blur={2} far={15} color="#000000" />
+        </>
+    );
+}
+
 export default function BattleArena({
     playerUrl,
     playerScale = 1,
@@ -119,37 +176,14 @@ export default function BattleArena({
     return (
         <div className="absolute inset-0 z-0 pointer-events-none">
             <Canvas shadows camera={{ position: [0, 6, 26], fov: 35 }}>
-                <ambientLight intensity={1.5} />
-                <directionalLight position={[10, 15, 10]} intensity={2.5} castShadow shadow-bias={-0.001} />
-                <directionalLight position={[-10, 5, -10]} intensity={1.5} />
-
-                {/* The Arena Ground / Platform */}
-                <mesh receiveShadow position={[0, -0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                    <circleGeometry args={[20, 64]} />
-                    <meshToonMaterial color="#689F38" />
-                </mesh>
-
-                {/* Subtle grass darker ring */}
-                <mesh receiveShadow position={[0, -0.15, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                    <circleGeometry args={[22, 64]} />
-                    <meshToonMaterial color="#558B2F" />
-                </mesh>
-
-                {/* Player Position (Bottom Left) */}
-                <group position={[2, 0, 15]}>
-                    <Suspense fallback={null}>
-                        <Model url={playerUrl} modelScale={playerScale} animationName={playerAnim} facing="right" />
-                    </Suspense>
-                </group>
-
-                {/* Enemy Position (Top Right) */}
-                <group position={[-10, 0, -5]}>
-                    <Suspense fallback={null}>
-                        <Model url={enemyUrl} modelScale={enemyScale} animationName={enemyAnim} facing="left" />
-                    </Suspense>
-                </group>
-
-                <ContactShadows opacity={0.4} scale={30} blur={2} far={15} color="#000000" />
+                <SceneContent
+                    playerUrl={playerUrl}
+                    playerScale={playerScale}
+                    playerAnim={playerAnim}
+                    enemyUrl={enemyUrl}
+                    enemyScale={enemyScale}
+                    enemyAnim={enemyAnim}
+                />
             </Canvas>
         </div >
     );

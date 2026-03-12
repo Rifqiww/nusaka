@@ -6,6 +6,6 @@ interface NotifState {
 }
 
 export const useNotifStore = create<NotifState>((set) => ({
-  hasNewNotif: true,
+  hasNewNotif: false,
   setHasNewNotif: (value: boolean) => set({ hasNewNotif: value }),
 }));

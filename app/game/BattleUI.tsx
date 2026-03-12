@@ -145,7 +145,7 @@ export default function BattleUI() {
     const playerAnim = phase === 'player_attack' ? 'attack' : 'idle';
 
     return (
-        <div className="absolute inset-0 z-[100] flex flex-col bg-gradient-to-b from-[#87CEEB] to-[#8BC34A] pointer-events-auto" style={{ fontFamily: 'var(--font-nanum-pen)' }}>
+        <div className="absolute inset-0 z-50 flex flex-col bg-linear-to-b from-[#87CEEB] to-[#8BC34A] pointer-events-auto" style={{ fontFamily: 'var(--font-nanum-pen)' }}>
 
             {/* Action Area */}
             <div className="flex-1 relative overflow-hidden">
@@ -160,14 +160,14 @@ export default function BattleUI() {
                 />
 
                 {/* --- TOP LEFT: Enemy HUD --- */}
-                <div className="absolute top-8 left-8 bg-white border-[4px] border-[#374151] rounded-tl-3xl rounded-br-3xl px-6 py-3 w-80 shadow-[6px_6px_0_#374151]">
+                <div className="absolute top-4 left-4 sm:top-8 sm:left-8 bg-white border-[3px] sm:border-4 border-[#374151] rounded-tl-2xl sm:rounded-tl-3xl rounded-br-2xl sm:rounded-br-3xl px-4 sm:px-6 py-2 sm:py-3 w-[85vw] max-w-[320px] sm:w-80 shadow-[4px_4px_0_#374151] sm:shadow-[6px_6px_0_#374151]">
                     <div className="flex justify-between items-center border-b-2 border-dashed border-[#9CA3AF] pb-1 mb-2">
-                        <span className="text-3xl font-black uppercase text-[#374151]">{wildCreature.name}</span>
-                        <span className="text-xl font-bold bg-[#FEF08A] px-2 py-0.5 rounded-lg border-2 border-[#374151] shadow-sm">Lv.{wildCreature.level || 5}</span>
+                        <span className="text-xl sm:text-3xl font-black uppercase text-[#374151] truncate mr-2">{wildCreature.name}</span>
+                        <span className="text-sm sm:text-xl font-bold bg-[#FEF08A] px-1.5 sm:px-2 py-0.5 rounded-lg border-2 border-[#374151] shadow-sm shrink-0">Lv.{wildCreature.level || 5}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="text-sm font-black text-[#374151] bg-[#FCA5A5] px-1.5 py-0.5 rounded border border-[#374151]">HP</span>
-                        <div className="flex-1 h-4 bg-[#374151] p-[3px] rounded-full border-2 border-[#374151]">
+                        <span className="text-[10px] sm:text-sm font-black text-[#374151] bg-[#FCA5A5] px-1 sm:px-1.5 py-0.5 rounded border border-[#374151]">HP</span>
+                        <div className="flex-1 h-3 sm:h-4 bg-[#374151] p-[2px] sm:p-[3px] rounded-full border-2 border-[#374151]">
                             <div className="w-full h-full bg-white rounded-full overflow-hidden">
                                 <div className={`h-full transition-all duration-500 ease-out ${getHpColor(enemyHpPercent)}`} style={{ width: `${enemyHpPercent}%` }}></div>
                             </div>
@@ -176,47 +176,49 @@ export default function BattleUI() {
                 </div>
 
                 {/* --- BOTTOM RIGHT: Player HUD --- */}
-                <div className="absolute bottom-8 right-8 bg-[#E5E7EB] border-[4px] border-[#374151] rounded-tl-3xl rounded-br-3xl px-6 py-4 w-96 shadow-[6px_6px_0_#374151]">
+                <div className="absolute bottom-4 right-4 sm:bottom-8 sm:right-8 bg-[#E5E7EB] border-[3px] sm:border-4 border-[#374151] rounded-tl-2xl sm:rounded-tl-3xl rounded-br-2xl sm:rounded-br-3xl px-4 sm:px-6 py-3 sm:py-4 w-[85vw] max-w-[360px] sm:w-96 shadow-[4px_4px_0_#374151] sm:shadow-[6px_6px_0_#374151] z-20">
                     <div className="flex justify-between items-center border-b-2 border-solid border-[#9CA3AF] pb-1 mb-2">
-                        <span className="text-3xl font-black uppercase text-[#374151]">{playerCreature.nickname || playerCreature.name}</span>
-                        <span className="text-xl font-bold bg-[#FEF08A] px-2 py-0.5 rounded-lg border-2 border-[#374151] shadow-sm">Lv.{playerCreature.level || 5}</span>
+                        <span className="text-xl sm:text-3xl font-black uppercase text-[#374151] truncate mr-2">{playerCreature.nickname || playerCreature.name}</span>
+                        <span className="text-sm sm:text-xl font-bold bg-[#FEF08A] px-1.5 sm:px-2 py-0.5 rounded-lg border-2 border-[#374151] shadow-sm shrink-0">Lv.{playerCreature.level || 5}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="text-sm font-black text-[#374151] bg-[#FCA5A5] px-1.5 py-0.5 rounded border border-[#374151]">HP</span>
-                        <div className="flex-1 h-5 bg-[#374151] p-[4px] rounded-full border-2 border-[#374151]">
+                        <span className="text-[10px] sm:text-sm font-black text-[#374151] bg-[#FCA5A5] px-1 sm:px-1.5 py-0.5 rounded border border-[#374151]">HP</span>
+                        <div className="flex-1 h-3.5 sm:h-5 bg-[#374151] p-[3px] sm:p-[4px] rounded-full border-2 border-[#374151]">
                             <div className="w-full h-full bg-white rounded-full overflow-hidden">
                                 <div className={`h-full transition-all duration-500 ease-out ${getHpColor(playerHpPercent)}`} style={{ width: `${playerHpPercent}%` }}></div>
                             </div>
                         </div>
                     </div>
-                    <div className="text-right mt-1 text-2xl font-black text-[#374151]">
+                    <div className="text-right mt-1 text-lg sm:text-2xl font-black text-[#374151]">
                         {Math.ceil(playerHp)} / {playerMaxHp}
                     </div>
-                </div>      {/* Visual Effect overlays */}
+                </div>
+
+                {/* Visual Effect overlays */}
                 {phase === 'player_attack' && <div className="absolute inset-0 bg-white/40 animate-pulse pointer-events-none z-10"></div>}
-                {phase === 'catch_attempt' && <div className="absolute top-1/2 left-1/2 w-8 h-8 bg-red-500 rounded-full border-4 border-white shadow-xl animate-bounce z-20"></div>}
+                {phase === 'catch_attempt' && <div className="absolute top-1/2 left-1/2 w-8 h-8 -translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full border-4 border-white shadow-xl animate-bounce z-20"></div>}
             </div>
 
             {/* Bottom Dialog Box (Menu Area) */}
-            <div className="h-48 bg-[#E5E7EB] border-t-[8px] border-[#374151] flex">
+            <div className="min-h-[160px] sm:h-48 bg-[#E5E7EB] border-t-[6px] sm:border-t-8 border-[#374151] flex flex-col sm:flex-row items-center sm:items-stretch sm:justify-start p-2 sm:p-0">
                 {/* Left: Message Log */}
-                <div className="flex-1 bg-white m-4 border-[4px] border-[#374151] rounded-2xl p-6 shadow-inner flex items-center">
-                    <p className="text-4xl text-[#374151] font-black uppercase tracking-wide leading-relaxed animate-[pulse_1s_ease-in-out_infinite]">{message}</p>
+                <div className="w-[calc(100%-0.5rem)] sm:flex-1 bg-white m-1 sm:m-4 border-[3px] sm:border-4 border-[#374151] rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-inner flex items-center overflow-hidden">
+                    <p className="text-2xl sm:text-4xl text-[#374151] font-black uppercase tracking-wide leading-tight sm:leading-relaxed animate-[pulse_1s_ease-in-out_infinite]">{message}</p>
                 </div>
 
                 {/* Right: Command Buttons */}
                 {menuOpen && (
-                    <div className="w-[400px] m-4 ml-0 grid grid-cols-2 gap-3">
-                        <button onClick={handleAttack} className="bg-[#EF4444] border-[4px] border-[#B91C1C] rounded-2xl flex items-center justify-center text-3xl font-black text-white uppercase hover:scale-105 transition-transform hover:shadow-[4px_4px_0_#B91C1C] shadow-[2px_2px_0_#B91C1C]">
+                    <div className="w-[calc(100%-0.5rem)] sm:w-[400px] m-1 sm:m-4 sm:ml-0 grid grid-cols-2 gap-2 sm:gap-3 shrink-0">
+                        <button onClick={handleAttack} className="bg-[#EF4444] border-[3px] sm:border-4 border-[#B91C1C] rounded-xl sm:rounded-2xl h-12 sm:h-auto flex items-center justify-center text-xl sm:text-3xl font-black text-white uppercase active:scale-95 sm:hover:scale-105 transition-transform shadow-[2px_2px_0_#B91C1C] sm:shadow-[4px_4px_0_#B91C1C]">
                             FIGHT
                         </button>
-                        <button onClick={handleCatch} className="bg-[#3B82F6] border-[4px] border-[#1D4ED8] rounded-2xl flex items-center justify-center text-3xl font-black text-white uppercase hover:scale-105 transition-transform hover:shadow-[4px_4px_0_#1D4ED8] shadow-[2px_2px_0_#1D4ED8]">
+                        <button onClick={handleCatch} className="bg-[#3B82F6] border-[3px] sm:border-4 border-[#1D4ED8] rounded-xl sm:rounded-2xl h-12 sm:h-auto flex items-center justify-center text-xl sm:text-3xl font-black text-white uppercase active:scale-95 sm:hover:scale-105 transition-transform shadow-[2px_2px_0_#1D4ED8] sm:shadow-[4px_4px_0_#1D4ED8]">
                             ARLOJI
                         </button>
-                        <button className="bg-[#10B981] border-[4px] border-[#047857] rounded-2xl flex items-center justify-center text-3xl font-black text-white uppercase hover:scale-105 transition-transform hover:shadow-[4px_4px_0_#047857] shadow-[2px_2px_0_#047857] opacity-50 cursor-not-allowed">
+                        <button className="bg-[#10B981] border-[3px] sm:border-4 border-[#047857] rounded-xl sm:rounded-2xl h-12 sm:h-auto flex items-center justify-center text-xl sm:text-3xl font-black text-white uppercase opacity-50 cursor-not-allowed">
                             POKÉMON
                         </button>
-                        <button onClick={handleRun} className="bg-[#F59E0B] border-[4px] border-[#B45309] rounded-2xl flex items-center justify-center text-3xl font-black text-white uppercase hover:scale-105 transition-transform hover:shadow-[4px_4px_0_#B45309] shadow-[2px_2px_0_#B45309]">
+                        <button onClick={handleRun} className="bg-[#F59E0B] border-[3px] sm:border-4 border-[#B45309] rounded-xl sm:rounded-2xl h-12 sm:h-auto flex items-center justify-center text-xl sm:text-3xl font-black text-white uppercase active:scale-95 sm:hover:scale-105 transition-transform shadow-[2px_2px_0_#B45309] sm:shadow-[4px_4px_0_#B45309]">
                             RUN
                         </button>
                     </div>
@@ -224,4 +226,5 @@ export default function BattleUI() {
             </div>
         </div>
     );
+
 }

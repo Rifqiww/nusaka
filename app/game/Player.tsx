@@ -467,7 +467,7 @@ export default function Player() {
         }
 
         group.current.position.copy(playerPosition.current);
-        group.current.quaternion.slerp(targetRotation.current, 15 * delta);
+        group.current.quaternion.slerp(targetRotation.current, Math.min(15 * delta, 1));
 
         // --- Camera ---
         const IsCreating = currentMenuState === 'create_character';
@@ -490,7 +490,7 @@ export default function Player() {
         _idealCamPos.copy(playerPosition.current)
             .addScaledVector(_currentCamFwd, -offsetDistance)
             .addScaledVector(_pUp, offsetHeight);
-        camera.position.lerp(_idealCamPos, 5 * delta);
+        camera.position.lerp(_idealCamPos, Math.min(5 * delta, 1));
 
         _lookTarget.copy(playerPosition.current)
             .addScaledVector(_pUp, IsCreating ? 1.5 : 1)
@@ -498,7 +498,7 @@ export default function Player() {
 
         _tempMatrix.lookAt(camera.position, _lookTarget, _pUp);
         _targetCamQuat.setFromRotationMatrix(_tempMatrix);
-        camera.quaternion.slerp(_targetCamQuat, 5 * delta);
+        camera.quaternion.slerp(_targetCamQuat, Math.min(5 * delta, 1));
 
         // --- Sun light ---
         if (lightGroupRef.current) {

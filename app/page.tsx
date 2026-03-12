@@ -127,7 +127,7 @@ export default function Home() {
           <div className="pointer-events-auto w-full flex flex-col items-center justify-center h-full">
             {/* LOGO */}
             <div className="relative w-80 h-36 md:w-[400px] md:h-48 drop-shadow-2xl transition-transform hover:scale-105 duration-300 mb-4">
-              <Image src="/Nusaka.svg" alt="Nusaka Logo" fill className="object-contain" priority />
+              <img src="/Nusaka.svg" alt="Nusaka Logo" className="absolute inset-0 w-full h-full object-contain" />
             </div>
 
             {/* STATE 1: CHECKING DATA */}
@@ -184,12 +184,10 @@ export default function Home() {
           onClick={() => startTransition(() => router.push('/profile'))}
           className="relative w-36 h-20 md:w-52 md:h-28 hover:scale-110 transition-transform cursor-pointer shrink-0 origin-right"
         >
-          <Image
+          <img
             src="/nusadex/Idcard.png"
             alt="ID Card"
-            fill
-            className="object-contain object-right"
-            priority
+            className="absolute inset-0 w-full h-full object-contain object-right"
           />
         </button>
 
@@ -199,12 +197,10 @@ export default function Home() {
             onClick={() => setNusadexOpen(true)}
             className="relative w-28 h-36 md:w-40 md:h-48 hover:scale-[1.05] transition-transform cursor-pointer shrink-0 origin-right"
           >
-            <Image
+            <img
               src="/nusadex/nusadexs.png"
               alt="Nusadex"
-              fill
-              className="object-contain object-right"
-              priority
+              className="absolute inset-0 w-full h-full object-contain object-right"
             />
             {/* Notification Dot */}
             {hasNewNotif && (

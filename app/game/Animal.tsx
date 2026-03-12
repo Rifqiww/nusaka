@@ -12,25 +12,26 @@ interface AnimalProps {
     scale?: number
 }
 
-// Shared LOD system: instead of 45 separate useFrame callbacks (one per animal),
-// we use a single interval + IntersectionObserver-style approach.
-// Each animal registers itself and gets updated from a centralized timer.
-const lodRegistry = new Map<THREE.Group, THREE.Vector3>();
+// Shared LOD system: instead of 45 separate useFrame callbacks,
+// we use a single interval. We also PAUSE skeletal animations when out of view.
+const lodRegistry = new Map<THREE.Group, { position: THREE.Vector3, setVisible: (v: boolean) => void }>();
 
-// A module-level interval updates all animal visibility at 5 fps max
-// This replaces 45x useFrame subscriptions with a single lightweight timer
 let lodInterval: ReturnType<typeof setInterval> | null = null;
 let registeredCamera: THREE.Camera | null = null;
-const LOD_INTERVAL_MS = 200; // 5fps is fine for LOD decisions
+const LOD_INTERVAL_MS = 250; // 4fps is fine for LOD decisions
 const RENDER_DIST_SQ = 150 * 150;
 
 function startLodSystem() {
     if (lodInterval) return;
     lodInterval = setInterval(() => {
         if (!registeredCamera) return;
-        lodRegistry.forEach((position, groupRef) => {
-            const distSq = registeredCamera!.position.distanceToSquared(position);
-            groupRef.visible = distSq < RENDER_DIST_SQ;
+        lodRegistry.forEach((data, groupRef) => {
+            const distSq = registeredCamera!.position.distanceToSquared(data.position);
+            const isVisible = distSq < RENDER_DIST_SQ;
+            if (groupRef.visible !== isVisible) {
+                groupRef.visible = isVisible;
+                data.setVisible(isVisible);
+            }
         });
     }, LOD_INTERVAL_MS);
 }
@@ -68,15 +69,21 @@ export function Animal({ path, position, normal, rotationY, scale = 1 }: AnimalP
         return clonedScene
     }, [scene])
 
-    const { ref, actions, names } = useAnimations(animations)
+    const { ref, actions, names, mixer } = useAnimations(animations)
     const groupRef = useRef<THREE.Group>(null)
     const { camera } = useThree()
 
-    // Register with centralized LOD system (replaces per-animal useFrame)
+    // Register with centralized LOD system
     useEffect(() => {
         registeredCamera = camera;
         if (groupRef.current) {
-            lodRegistry.set(groupRef.current, position);
+            lodRegistry.set(groupRef.current, {
+                position,
+                setVisible: (v: boolean) => {
+                    // Halt expensive skeletal animation matrix calculations when invisible
+                    mixer.timeScale = v ? 1 : 0;
+                }
+            });
         }
         startLodSystem();
 

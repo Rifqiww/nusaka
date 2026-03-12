@@ -165,7 +165,7 @@ export default function CreateCharacter() {
                 <div>
                     {/* Nusaka Logo */}
                     <div className="relative w-62 h-34 mb-4">
-                        <Image src="/Nusaka.svg" alt="Nusaka Logo" fill className="object-contain object-left" priority />
+                        <img src="/Nusaka.svg" alt="Nusaka Logo" className="absolute inset-0 w-full h-full object-contain object-left" />
                     </div>
                     <h1
                         className="text-6xl md:text-8xl text-white"

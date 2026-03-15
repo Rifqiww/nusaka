@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import { Animal } from './Animal'
+import { useStoneStore } from './stoneStore'
 
 export const PLANET_RADIUS = 150;
 
@@ -87,6 +88,27 @@ function generateAnimalData(count: number, seedStart: number) {
 export const KOMODO_DATA = generateAnimalData(15, 8812);
 export const ORANGUTAN_DATA = generateAnimalData(15, 9923);
 export const RAJAWALI_DATA = generateAnimalData(15, 1134);
+export const BATU_DATA = generateAnimalData(40, 4422);
+
+export function randomizeBatuPosition(id: number) {
+    if (!BATU_DATA[id]) return;
+    const u = Math.random();
+    const v = Math.random();
+    const theta = 2 * Math.PI * u;
+    const phi = Math.acos(2 * v - 1);
+
+    const x = PLANET_RADIUS * Math.sin(phi) * Math.cos(theta);
+    const y = PLANET_RADIUS * Math.sin(phi) * Math.sin(theta);
+    const z = PLANET_RADIUS * Math.cos(phi);
+
+    BATU_DATA[id].position.set(x, y, z);
+    BATU_DATA[id].normal.copy(BATU_DATA[id].position).normalize();
+    // Sink the rock into the ground by moving it slightly against its normal
+    const sinkAmount = 1.0; 
+    BATU_DATA[id].position.addScaledVector(BATU_DATA[id].normal, -sinkAmount);
+    
+    BATU_DATA[id].rotationY = Math.random() * Math.PI * 2;
+}
 
 // Pre-allocate a stable quaternion for tree orientation to avoid per-frame alloc
 const _treeUp = new THREE.Vector3(0, 1, 0);
@@ -225,8 +247,37 @@ function Trees() {
     );
 }
 
+function Stone({ data }: { data: any }) {
+    const { scene } = useGLTF('/model/batuFinal.glb') as any;
+    const clone = useMemo(() => {
+        const c = scene.clone();
+        c.traverse((child: any) => {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+        return c;
+    }, [scene]);
+    const quaternion = useMemo(() => {
+        const q = new THREE.Quaternion();
+        q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), data.normal);
+        return q;
+    }, [data.normal]);
+
+    return (
+        <group position={data.position} quaternion={quaternion}>
+            <group rotation-y={data.rotationY} scale={data.scale * 0.8}>
+                <primitive object={clone} />
+            </group>
+        </group>
+    );
+}
+
 export default function Planet() {
     const planetRef = useRef<THREE.Mesh>(null)
+    // Force re-render of stones when respawn triggered
+    const respawnTrigger = useStoneStore(s => s.respawnTrigger);
 
     const grassTexture = useMemo(() => {
         if (typeof document === 'undefined') return null; // SSR safety
@@ -290,6 +341,9 @@ export default function Planet() {
                 )}
             </mesh>
             <Trees />
+            {BATU_DATA.map((data, i) => (
+                <Stone key={`batu-${i}`} data={data} />
+            ))}
             {KOMODO_DATA.map((data, i) => (
                 <Animal key={`komodo-${i}`} path="/model/Komodo.glb" position={data.position.clone().addScaledVector(data.normal, 0)} normal={data.normal} rotationY={data.rotationY} scale={data.scale * 0.3} />
             ))}
@@ -307,3 +361,4 @@ useGLTF.preload('/model/pohon.glb');
 useGLTF.preload('/model/komodo.glb');
 useGLTF.preload('/model/OrangUtan.glb');
 useGLTF.preload('/model/rajawali.glb');
+useGLTF.preload('/model/batuFinal.glb');

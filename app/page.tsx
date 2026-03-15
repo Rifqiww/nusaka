@@ -16,7 +16,9 @@ import { useNotifStore } from "./nusadex/notifStore";
 import NusadexPopup from "./nusadex/NusadexPopup";
 import { useBattleStore } from './game/battleStore';
 import { useCreatureStore } from './nusadex/store';
+import { useStoneStore } from './game/stoneStore';
 import BattleUI from './game/BattleUI';
+import BatuQuiz from './game/BatuQuiz';
 import AudioPlayerControl from '../components/AudioPlayerControl';
 
 const GameScene = dynamic(() => import('./game/GameScene'), { ssr: false })
@@ -41,6 +43,7 @@ export default function Home() {
   const nearbyCreature = useBattleStore(s => s.nearbyCreature)
   const startBattle = useBattleStore(s => s.startBattle)
   const firstPartner = useCreatureStore(s => s.firstPartner)
+  const nearbyStoneId = useStoneStore(s => s.nearbyStoneId)
 
   // Handle keyboard Interaction "E"
   useEffect(() => {
@@ -49,9 +52,16 @@ export default function Home() {
       const { menuState } = useJoystickStore.getState();
       const { nearbyCreature, startBattle } = useBattleStore.getState();
       const { firstPartner } = useCreatureStore.getState();
-      if (menuState === 'playing' && nearbyCreature && firstPartner) {
-        startBattle(nearbyCreature, firstPartner);
-        useJoystickStore.getState().setMenuState('battle');
+      const { nearbyStoneId, startMinigame } = useStoneStore.getState();
+
+      if (menuState === 'playing') {
+        if (nearbyCreature && firstPartner) {
+          startBattle(nearbyCreature, firstPartner);
+          useJoystickStore.getState().setMenuState('battle');
+        } else if (nearbyStoneId !== null) {
+          startMinigame();
+          useJoystickStore.getState().setMenuState('batu_quiz');
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -114,6 +124,14 @@ export default function Home() {
     }
   }, [startBattle, setMenuState])
 
+  const handleStoneMinigameStart = useCallback(() => {
+    const { nearbyStoneId, startMinigame } = useStoneStore.getState();
+    if (nearbyStoneId !== null) {
+      startMinigame();
+      setMenuState('batu_quiz');
+    }
+  }, [setMenuState])
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#87CEEB]">
       {/* 3D Canvas Background */}
@@ -122,7 +140,7 @@ export default function Home() {
       </div>
 
       {/* Main Menu UI Overlay */}
-      {menuState !== 'playing' && (
+      {(menuState === 'main' || menuState === 'checking') && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none bg-transparent backdrop-blur-[6px]">
           <div className="pointer-events-auto w-full flex flex-col items-center justify-center h-full">
             {/* LOGO */}
@@ -240,8 +258,27 @@ export default function Home() {
         </div>
       )}
 
+      {/* Interaction Prompt (E to Batu Quiz) */}
+      {menuState === 'playing' && !nearbyCreature && nearbyStoneId !== null && (
+        <div className="absolute bottom-48 md:bottom-12 left-1/2 -translate-x-1/2 z-40 pointer-events-auto w-full sm:w-auto flex justify-center px-6 sm:px-0">
+          <button
+            onClick={handleStoneMinigameStart}
+            className="flex items-center justify-center gap-4 bg-[#6EE7B7] hover:bg-[#34D399] border-4 border-[#064E3B] w-full max-w-[340px] md:w-auto px-6 py-2 md:px-8 md:py-4 rounded-[24px] md:rounded-[32px] shadow-[6px_6px_0_#064E3B] md:shadow-[4px_4px_0_#064E3B] hover:-translate-y-1 transition-transform"
+          >
+            <div className="text-4xl">🪨</div>
+            <div className="flex flex-col items-start leading-none text-[#064E3B]" style={{ fontFamily: 'var(--font-nanum-pen)' }}>
+              <span className="text-3xl md:text-3xl font-black">Periksa Batu!</span>
+              <span className="text-sm md:text-base font-bold text-[#064E3B]/70 tracking-widest uppercase">Tekan "E" atau Tap</span>
+            </div>
+          </button>
+        </div>
+      )}
+
       {/* Battle UI Overlay */}
       {menuState === 'battle' && <BattleUI />}
+
+      {/* Batu Quiz Overlay */}
+      {menuState === 'batu_quiz' && <BatuQuiz />}
 
       {/* Nusadex Popup */}
       <NusadexPopup />

@@ -2,14 +2,16 @@ import { useRef, useEffect, useMemo, useLayoutEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF, useAnimations, Hud, OrthographicCamera } from '@react-three/drei'
 import * as THREE from 'three'
-import { PLANET_RADIUS, TREES_DATA, KOMODO_DATA, ORANGUTAN_DATA, RAJAWALI_DATA } from './Planet'
+import { PLANET_RADIUS, TREES_DATA, KOMODO_DATA, ORANGUTAN_DATA, RAJAWALI_DATA, BATU_DATA } from './Planet'
 import { useJoystickStore } from './store'
 import { useBattleStore } from './battleStore'
+import { useStoneStore } from './stoneStore'
 import { NUSA_CREATURES } from '../nusadex/creatures'
 
 // --- Pre-compute colliders once at module level (never rebuilt at runtime) ---
 const COLLIDERS = [
     ...TREES_DATA.map(t => ({ pos: t.position, radius: t.scale * 0.8, type: 'tree' as const, id: null as null })),
+    ...BATU_DATA.map((b, i) => ({ pos: b.position, radius: b.scale * 2.0, type: 'stone' as const, id: i })),
     ...KOMODO_DATA.map(k => ({ pos: k.position, radius: 2.5, type: 'animal' as const, id: 2 })),
     ...ORANGUTAN_DATA.map(o => ({ pos: o.position, radius: 2.5, type: 'animal' as const, id: 3 })),
     ...RAJAWALI_DATA.map(r => ({ pos: r.position, radius: 1.5, type: 'animal' as const, id: 1 })),
@@ -47,6 +49,7 @@ function MinimapGlobe({ playerPosition }: { playerPosition: React.MutableRefObje
 
     const treeMeshRef = useRef<THREE.InstancedMesh>(null);
     const animalMeshRef = useRef<THREE.InstancedMesh>(null);
+    const stoneMeshRef = useRef<THREE.InstancedMesh>(null);
     const { camera } = useThree();
 
     const _miniDummy = useMemo(() => new THREE.Object3D(), []);
@@ -70,6 +73,15 @@ function MinimapGlobe({ playerPosition }: { playerPosition: React.MutableRefObje
                 animalMeshRef.current!.setMatrixAt(i, _miniDummy.matrix);
             });
             animalMeshRef.current.instanceMatrix.needsUpdate = true;
+        }
+
+        if (stoneMeshRef.current) {
+            BATU_DATA.forEach((stone, i) => {
+                _miniDummy.position.copy(stone.position).normalize();
+                _miniDummy.updateMatrix();
+                stoneMeshRef.current!.setMatrixAt(i, _miniDummy.matrix);
+            });
+            stoneMeshRef.current.instanceMatrix.needsUpdate = true;
         }
     }, [])
 
@@ -106,6 +118,11 @@ function MinimapGlobe({ playerPosition }: { playerPosition: React.MutableRefObje
                     <instancedMesh ref={treeMeshRef} args={[undefined as any, undefined as any, Math.ceil(TREES_DATA.length / 5)]}>
                         <boxGeometry args={[0.05, 0.05, 0.05]} />
                         <meshBasicMaterial color="#2d6a4f" />
+                    </instancedMesh>
+
+                    <instancedMesh ref={stoneMeshRef} args={[undefined as any, undefined as any, BATU_DATA.length]}>
+                        <boxGeometry args={[0.08, 0.08, 0.08]} />
+                        <meshBasicMaterial color="#9E9E9E" />
                     </instancedMesh>
 
                     <instancedMesh ref={animalMeshRef} args={[undefined as any, undefined as any, KOMODO_DATA.length + ORANGUTAN_DATA.length + RAJAWALI_DATA.length]}>
@@ -410,13 +427,15 @@ export default function Player() {
 
             for (let i = 0; i < COLLIDERS.length; i++) {
                 const col = COLLIDERS[i];
+                if (col.type !== 'tree' && col.type !== 'stone') continue;
+
                 _p1.copy(_nextPos).normalize();
                 _p2.copy(col.pos).normalize();
                 const distSq = _p1.distanceToSquared(_p2) * PLANET_RADIUS * PLANET_RADIUS;
 
                 if (distSq < col.radius * col.radius) {
                     _slideDir.copy(_nextPos).sub(col.pos).normalize();
-                    _nextPos.addScaledVector(_slideDir, speed * delta);
+                    _nextPos.addScaledVector(_slideDir, speed * delta * 2.5); // Increase repulsion force
                     _nextPos.normalize().multiplyScalar(PLANET_RADIUS);
                 }
             }
@@ -447,19 +466,26 @@ export default function Player() {
 
             let closestAnimalId: number | null = null;
             let closestDistSq = Infinity;
+            let nearStoneId: number | null = null;
 
             for (let i = 0; i < COLLIDERS.length; i++) {
                 const col = COLLIDERS[i];
-                if (col.type !== 'animal') continue;
+                if (col.type !== 'animal' && col.type !== 'stone') continue;
 
                 _p1.copy(playerPosition.current).normalize();
                 _p2.copy(col.pos).normalize();
                 const distSq = _p1.distanceToSquared(_p2) * PLANET_RADIUS * PLANET_RADIUS;
 
-                // Increased radius to 18m to prevent flickering/early disappearance
-                if (distSq < 18 * 18 && distSq < closestDistSq) {
-                    closestDistSq = distSq;
-                    closestAnimalId = col.id;
+                if (col.type === 'animal') {
+                    // Increased radius to 18m to prevent flickering/early disappearance
+                    if (distSq < 18 * 18 && distSq < closestDistSq) {
+                        closestDistSq = distSq;
+                        closestAnimalId = col.id;
+                    }
+                } else if (col.type === 'stone') {
+                    if (distSq < 15 * 15) {
+                        nearStoneId = col.id;
+                    }
                 }
             }
 
@@ -472,6 +498,11 @@ export default function Player() {
                 } else {
                     battleStore.setNearbyCreature(null);
                 }
+            }
+
+            const stoneStore = useStoneStore.getState();
+            if (stoneStore.nearbyStoneId !== nearStoneId) {
+                stoneStore.setNearbyStoneId(nearStoneId);
             }
         }
 

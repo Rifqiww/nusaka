@@ -165,74 +165,109 @@ function Trees() {
         return matrices;
     }, []);
 
-    const prevCamPos = useRef(new THREE.Vector3(Infinity, Infinity, Infinity)); // Force first check to pass
-    const _tempMatrix = useMemo(() => new THREE.Matrix4(), []);
     const _frustum = useMemo(() => new THREE.Frustum(), []);
     const _projScreenMatrix = useMemo(() => new THREE.Matrix4(), []);
-    const _treeSphere = useMemo(() => new THREE.Sphere(new THREE.Vector3(), 8), []); // 8 unit buffer radius
+    const _treeSphere = useMemo(() => new THREE.Sphere(new THREE.Vector3(), 5), []);
 
-    const prevCamQuat = useRef(new THREE.Quaternion());
-    const lastVisibleCount = useRef(-1);
+    const prevUpdatePos = useRef(new THREE.Vector3());
+    const prevUpdateQuat = useRef(new THREE.Quaternion());
+    const lastVisibleCountShadow = useRef(0);
+    const lastVisibleCountNoShadow = useRef(0);
 
-    // Stable buffer to avoid re-allocating memory
-    const packedBuffer = useMemo(() => new Float32Array(TREES_DATA.length * 16), []);
-    const renderDist = 180; // Distance limit
+    // Stable buffers to avoid re-allocating memory
+    const packedBufferShadow = useMemo(() => new Float32Array(TREES_DATA.length * 16), []);
+    const packedBufferNoShadow = useMemo(() => new Float32Array(TREES_DATA.length * 16), []);
+    
+    const meshShadowRef = useRef<THREE.InstancedMesh>(null);
+    const meshNoShadowRef = useRef<THREE.InstancedMesh>(null);
+
+    const renderDist = 170; // Slightly reduced for better mobile horizon
+    const shadowDist = 45; // Only trees within 45m cast shadows - HUGE performance boost for mobile
 
     useFrame((state) => {
-        if (!meshRef.current || !treeMesh) return;
+        if (!meshShadowRef.current || !meshNoShadowRef.current || !treeMesh) return;
         
-        // Force camera matrix update to ensure frustum is accurate for the CURRENT frame
+        const camPos = state.camera.position;
+        const camQuat = state.camera.quaternion;
+
+        // Optimization: Only update visibility if camera moved or rotated significantly
+        const distMoved = camPos.distanceToSquared(prevUpdatePos.current);
+        const rotDiff = camQuat.angleTo(prevUpdateQuat.current);
+        if (distMoved < 0.2 * 0.2 && rotDiff < 0.05) return;
+
+        prevUpdatePos.current.copy(camPos);
+        prevUpdateQuat.current.copy(camQuat);
+
         state.camera.updateMatrixWorld();
         _projScreenMatrix.multiplyMatrices(state.camera.projectionMatrix, state.camera.matrixWorldInverse);
         _frustum.setFromProjectionMatrix(_projScreenMatrix);
 
-        let visibleCount = 0;
+        let vCountShadow = 0;
+        let vCountNoShadow = 0;
         const treeCount = TREES_DATA.length;
-        const camPos = state.camera.position;
 
-        // Render trees that are NEAR player OR in pandangan kamera (Frustum)
         for (let i = 0; i < treeCount; i++) {
             const tree = TREES_DATA[i];
             const dSq = camPos.distanceToSquared(tree.position);
 
             if (dSq < renderDist * renderDist) {
-                // If very close (< 60m), always render for shadows and peripheral vision
-                // Otherwise, check if within camera view (frustum)
-                let inView = dSq < 60 * 60;
-                
+                // If within shadow dist, check if in view
+                // Near-field buffer (shadows behind you)
+                let inView = dSq < 60 * 60; 
                 if (!inView) {
-                    // Generous bounding sphere for frustum check
                     _treeSphere.center.copy(tree.position).addScaledVector(tree.normal, tree.scale * 0.5);
                     _treeSphere.radius = tree.scale * 2.0; 
                     inView = _frustum.intersectsSphere(_treeSphere);
                 }
 
                 if (inView) {
-                    const offset = visibleCount * 16;
                     const srcOffset = i * 16;
-                    for (let j = 0; j < 16; j++) {
-                        packedBuffer[offset + j] = treeMatrices[srcOffset + j];
+                    // Split between shadow-casters and non-shadow-casters
+                    if (dSq < shadowDist * shadowDist) {
+                        const offset = vCountShadow * 16;
+                        for (let j = 0; j < 16; j++) packedBufferShadow[offset + j] = treeMatrices[srcOffset + j];
+                        vCountShadow++;
+                    } else {
+                        const offset = vCountNoShadow * 16;
+                        for (let j = 0; j < 16; j++) packedBufferNoShadow[offset + j] = treeMatrices[srcOffset + j];
+                        vCountNoShadow++;
                     }
-                    visibleCount++;
                 }
             }
         }
 
-        meshRef.current.count = visibleCount;
-        meshRef.current.instanceMatrix.array.set(packedBuffer);
-        meshRef.current.instanceMatrix.needsUpdate = true;
-    }, 10); // Priority 10 ensures this runs AFTER Player.tsx updates the camera
+        // Apply Shadowed Mesh
+        meshShadowRef.current.count = vCountShadow;
+        meshShadowRef.current.instanceMatrix.array.set(packedBufferShadow);
+        meshShadowRef.current.instanceMatrix.needsUpdate = true;
+
+        // Apply No-Shadow Mesh
+        meshNoShadowRef.current.count = vCountNoShadow;
+        meshNoShadowRef.current.instanceMatrix.array.set(packedBufferNoShadow);
+        meshNoShadowRef.current.instanceMatrix.needsUpdate = true;
+    }, 10);
 
     if (!treeMesh) return null;
 
     return (
-        <instancedMesh
-            ref={meshRef}
-            args={[treeMesh.geometry, toonMaterial, TREES_DATA.length]}
-            castShadow
-            receiveShadow
-            frustumCulled={false}
-        />
+        <group>
+            {/* Near trees: Cast & Receive shadows */}
+            <instancedMesh
+                ref={meshShadowRef}
+                args={[treeMesh.geometry, toonMaterial, TREES_DATA.length]}
+                castShadow
+                receiveShadow
+                frustumCulled={false}
+            />
+            {/* Distant trees: ONLY Receive shadows (Disable CastShadow for perf) */}
+            <instancedMesh
+                ref={meshNoShadowRef}
+                args={[treeMesh.geometry, toonMaterial, TREES_DATA.length]}
+                castShadow={false}
+                receiveShadow
+                frustumCulled={false}
+            />
+        </group>
     );
 }
 

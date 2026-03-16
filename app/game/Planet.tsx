@@ -313,7 +313,7 @@ function Stone({ data }: { data: any }) {
 
     return (
         <group position={data.position} quaternion={quaternion}>
-            <group rotation-y={data.rotationY} scale={data.scale * 0.8}>
+            <group rotation-y={data.rotationY} scale={data.scale * 0.4}>
                 <primitive object={clone} />
             </group>
         </group>

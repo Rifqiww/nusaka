@@ -43,6 +43,7 @@ export default function Home() {
   const startBattle = useBattleStore(s => s.startBattle)
   const firstPartner = useCreatureStore(s => s.firstPartner)
   const nearbyStoneId = useStoneStore(s => s.nearbyStoneId)
+  const nearbyNPC = useJoystickStore(s => s.nearbyNPC)
 
   // Handle keyboard Interaction "E"
   useEffect(() => {
@@ -60,6 +61,10 @@ export default function Home() {
         } else if (nearbyStoneId !== null) {
           startMinigame();
           useJoystickStore.getState().setMenuState('batu_quiz');
+        } else if (useJoystickStore.getState().nearbyNPC) {
+          startTransition(() => {
+            router.push('/npc/kakek');
+          });
         }
       }
     };
@@ -301,6 +306,22 @@ export default function Home() {
             <div className="flex flex-col items-start leading-none text-[#064E3B]" style={{ fontFamily: 'var(--font-nanum-pen)' }}>
               <span className="text-3xl md:text-3xl font-black">Periksa Batu!</span>
               <span className="text-sm md:text-base font-bold text-[#064E3B]/70 tracking-widest uppercase">Tekan "E" atau Tap</span>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* Interaction Prompt (E to NPC) */}
+      {menuState === 'playing' && !nearbyCreature && nearbyStoneId === null && nearbyNPC && (
+        <div className="absolute bottom-48 md:bottom-12 left-1/2 -translate-x-1/2 z-40 pointer-events-auto w-full sm:w-auto flex justify-center px-6 sm:px-0">
+          <button
+            onClick={() => startTransition(() => router.push('/npc/kakek'))}
+            className="flex items-center justify-center gap-4 bg-[#FCD34D] hover:bg-[#FBBF24] border-4 border-[#92400E] w-full max-w-[340px] md:w-auto px-6 py-2 md:px-8 md:py-4 rounded-[24px] md:rounded-[32px] shadow-[6px_6px_0_#92400E] md:shadow-[4px_4px_0_#92400E] hover:-translate-y-1 transition-transform"
+          >
+            <div className="text-4xl">👴</div>
+            <div className="flex flex-col items-start leading-none text-[#92400E]" style={{ fontFamily: 'var(--font-nanum-pen)' }}>
+              <span className="text-3xl md:text-3xl font-black">Bicara dengan Kakek!</span>
+              <span className="text-sm md:text-base font-bold text-[#92400E]/70 tracking-widest uppercase">Tekan "E" atau Tap</span>
             </div>
           </button>
         </div>

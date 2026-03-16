@@ -11,7 +11,7 @@ import { NUSA_CREATURES } from '../nusadex/creatures'
 // --- Pre-compute colliders once at module level (never rebuilt at runtime) ---
 const COLLIDERS = [
     ...TREES_DATA.map(t => ({ pos: t.position, radius: t.scale * 0.8, type: 'tree' as const, id: null as null })),
-    ...BATU_DATA.map((b, i) => ({ pos: b.position, radius: b.scale * 2.0, type: 'stone' as const, id: i })),
+    ...BATU_DATA.map((b, i) => ({ pos: b.position, radius: b.scale * 1.2, type: 'stone' as const, id: i })),
     ...KOMODO_DATA.map(k => ({ pos: k.position, radius: 2.5, type: 'animal' as const, id: 2 })),
     ...ORANGUTAN_DATA.map(o => ({ pos: o.position, radius: 2.5, type: 'animal' as const, id: 3 })),
     ...RAJAWALI_DATA.map(r => ({ pos: r.position, radius: 1.5, type: 'animal' as const, id: 1 })),
@@ -470,10 +470,11 @@ export default function Player({ positionRef }: { positionRef?: React.MutableRef
             let closestAnimalId: number | null = null;
             let closestDistSq = Infinity;
             let nearStoneId: number | null = null;
+            let nearNpc = false;
 
             for (let i = 0; i < COLLIDERS.length; i++) {
                 const col = COLLIDERS[i];
-                if (col.type !== 'animal' && col.type !== 'stone') continue;
+                if (col.type !== 'animal' && col.type !== 'stone' && col.type !== 'npc') continue;
 
                 _p1.copy(playerPosition.current).normalize();
                 _p2.copy(col.pos).normalize();
@@ -488,6 +489,10 @@ export default function Player({ positionRef }: { positionRef?: React.MutableRef
                 } else if (col.type === 'stone') {
                     if (distSq < 15 * 15) {
                         nearStoneId = col.id;
+                    }
+                } else if (col.type === 'npc') {
+                    if (distSq < 10 * 10) {
+                        nearNpc = true;
                     }
                 }
             }
@@ -507,6 +512,11 @@ export default function Player({ positionRef }: { positionRef?: React.MutableRef
             const stoneStore = useStoneStore.getState();
             if (stoneStore.nearbyStoneId !== nearStoneId) {
                 stoneStore.setNearbyStoneId(nearStoneId);
+            }
+
+            const joystickStore = useJoystickStore.getState();
+            if (joystickStore.nearbyNPC !== nearNpc) {
+                joystickStore.setNearbyNPC(nearNpc);
             }
         }
 

@@ -21,6 +21,9 @@ interface JoystickState {
     state: "checking" | "auth" | "main" | "select_character" | "create_character" | "playing" | "battle" | "batu_quiz",
   ) => void;
 
+  nearbyNPC: boolean;
+  setNearbyNPC: (isNear: boolean) => void;
+
   isNusadexOpen: boolean;
   setNusadexOpen: (isOpen: boolean) => void;
 
@@ -48,6 +51,9 @@ export const useJoystickStore = create<JoystickState>((set) => ({
 
   menuState: "checking",
   setMenuState: (state) => set({ menuState: state }),
+
+  nearbyNPC: false,
+  setNearbyNPC: (isNear) => set({ nearbyNPC: isNear }),
 
   isNusadexOpen: false,
   setNusadexOpen: (isOpen: boolean) => set({ isNusadexOpen: isOpen }),

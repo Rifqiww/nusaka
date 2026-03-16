@@ -320,7 +320,6 @@ function Stone({ data }: { data: any }) {
     );
 }
 
-export default function Planet() {
 export default function Planet({ playerRef }: { playerRef?: React.MutableRefObject<THREE.Vector3> }) {
     const planetRef = useRef<THREE.Mesh>(null)
     // Force re-render of stones when respawn triggered

@@ -155,14 +155,7 @@ export default function Home() {
         <GameScene />
       </div>
 
-      {/* Main Menu UI Overlay */}
-      {(menuState === 'main' || menuState === 'checking') && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none bg-transparent backdrop-blur-[6px]">
-          <div className="pointer-events-auto w-full flex flex-col items-center justify-center h-full">
-            {/* LOGO */}
-            <div className="relative w-80 h-36 md:w-[400px] md:h-48 drop-shadow-2xl transition-transform hover:scale-105 duration-300 mb-4">
-              <img src="/Nusaka.svg" alt="Nusaka Logo" className="absolute inset-0 w-full h-full object-contain" />
-            </div>
+
       {menuState !== 'playing' && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none bg-[#FFF9E6]/30 backdrop-blur-xl transition-all duration-700">
           <div className="pointer-events-auto w-full flex flex-col items-center justify-center h-full max-w-4xl px-4">

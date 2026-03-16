@@ -2,8 +2,7 @@ import { useRef, useEffect, useMemo, useLayoutEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF, useAnimations, Hud, OrthographicCamera } from '@react-three/drei'
 import * as THREE from 'three'
-import { PLANET_RADIUS, TREES_DATA, KOMODO_DATA, ORANGUTAN_DATA, RAJAWALI_DATA, BATU_DATA } from './Planet'
-import { PLANET_RADIUS, TREES_DATA, KOMODO_DATA, ORANGUTAN_DATA, RAJAWALI_DATA, POS_DATA, NPC_DATA } from './Planet'
+import { PLANET_RADIUS, TREES_DATA, KOMODO_DATA, ORANGUTAN_DATA, RAJAWALI_DATA, BATU_DATA, POS_DATA, NPC_DATA } from './Planet'
 import { useJoystickStore } from './store'
 import { useBattleStore } from './battleStore'
 import { useStoneStore } from './stoneStore'
@@ -490,12 +489,9 @@ export default function Player({ positionRef }: { positionRef?: React.MutableRef
                     if (distSq < 15 * 15) {
                         nearStoneId = col.id;
                     }
-                // Even larger detection radius (30m) for better reliability when moving
-                if (distSq < 30 * 30 && distSq < closestDistSq) {
-                    closestDistSq = distSq;
-                    closestAnimalId = col.id;
                 }
             }
+
 
             if (closestAnimalId !== lastNearbyId.current) {
                 lastNearbyId.current = closestAnimalId;

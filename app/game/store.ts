@@ -16,6 +16,9 @@ interface JoystickState {
   ) => void;
 
   // UI State
+  menuState: "checking" | "main" | "create_character" | "playing" | "battle" | "batu_quiz";
+  setMenuState: (
+    state: "checking" | "main" | "create_character" | "playing" | "battle" | "batu_quiz",
   menuState: "checking" | "auth" | "main" | "select_character" | "create_character" | "playing" | "battle";
   setMenuState: (
     state: "checking" | "auth" | "main" | "select_character" | "create_character" | "playing" | "battle",
@@ -47,6 +50,8 @@ export const useJoystickStore = create<JoystickState>((set) => ({
   ) => set({ playerId: id, playerName: name, hasSaveData: hasSave }),
 
   menuState: "checking",
+  setMenuState: (state: "checking" | "main" | "create_character" | "playing" | "battle" | "batu_quiz") =>
+    set({ menuState: state }),
   setMenuState: (state) => set({ menuState: state }),
 
   isNusadexOpen: false,

@@ -2,7 +2,7 @@ import { useRef, useEffect, useMemo, useLayoutEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF, useAnimations, Hud, OrthographicCamera } from '@react-three/drei'
 import * as THREE from 'three'
-import { PLANET_RADIUS, TREES_DATA, KOMODO_DATA, ORANGUTAN_DATA, RAJAWALI_DATA, BATU_DATA, POS_DATA, NPC_DATA } from './Planet'
+import { PLANET_RADIUS, TREES_DATA, KOMODO_DATA, ORANGUTAN_DATA, RAJAWALI_DATA, BADAK_DATA, BATU_DATA, POS_DATA, NPC_DATA } from './Planet'
 import { useJoystickStore } from './store'
 import { useBattleStore } from './battleStore'
 import { useStoneStore } from './stoneStore'
@@ -15,6 +15,7 @@ const COLLIDERS = [
     ...KOMODO_DATA.map(k => ({ pos: k.position, radius: 2.5, type: 'animal' as const, id: 2 })),
     ...ORANGUTAN_DATA.map(o => ({ pos: o.position, radius: 2.5, type: 'animal' as const, id: 3 })),
     ...RAJAWALI_DATA.map(r => ({ pos: r.position, radius: 1.5, type: 'animal' as const, id: 1 })),
+    ...BADAK_DATA.map(b => ({ pos: b.position, radius: 3.0, type: 'animal' as const, id: 4 })),
     ...POS_DATA.map(p => ({ pos: p.position, radius: p.scale * 0.8, type: 'object' as const, id: null })),
     { pos: NPC_DATA.position, radius: 1.5, type: 'npc' as const, id: null },
 ];
@@ -68,7 +69,7 @@ function MinimapGlobe({ playerPosition }: { playerPosition: React.MutableRefObje
         }
 
         if (animalMeshRef.current) {
-            const animals = [...KOMODO_DATA, ...ORANGUTAN_DATA, ...RAJAWALI_DATA];
+            const animals = [...KOMODO_DATA, ...ORANGUTAN_DATA, ...RAJAWALI_DATA, ...BADAK_DATA];
             animals.forEach((animal, i) => {
                 _miniDummy.position.copy(animal.position).normalize();
                 _miniDummy.updateMatrix();
@@ -127,7 +128,7 @@ function MinimapGlobe({ playerPosition }: { playerPosition: React.MutableRefObje
                         <meshBasicMaterial color="#9E9E9E" />
                     </instancedMesh>
 
-                    <instancedMesh ref={animalMeshRef} args={[undefined as any, undefined as any, KOMODO_DATA.length + ORANGUTAN_DATA.length + RAJAWALI_DATA.length]}>
+                    <instancedMesh ref={animalMeshRef} args={[undefined as any, undefined as any, KOMODO_DATA.length + ORANGUTAN_DATA.length + RAJAWALI_DATA.length + BADAK_DATA.length]}>
                         <boxGeometry args={[0.08, 0.08, 0.08]} />
                         <meshBasicMaterial color="#FF5722" />
                     </instancedMesh>
@@ -430,7 +431,7 @@ export default function Player({ positionRef }: { positionRef?: React.MutableRef
 
             for (let i = 0; i < COLLIDERS.length; i++) {
                 const col = COLLIDERS[i];
-                if (col.type !== 'tree' && col.type !== 'stone') continue;
+                if (col.type !== 'tree' && col.type !== 'stone' && col.type !== 'animal') continue;
 
                 _p1.copy(_nextPos).normalize();
                 _p2.copy(col.pos).normalize();

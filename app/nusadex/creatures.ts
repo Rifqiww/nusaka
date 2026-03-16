@@ -64,4 +64,20 @@ export const NUSA_CREATURES: Creature[] = [
         scale: 1.5,
         position: [0, 2, 0],
     },
+    {
+        id: 4,
+        name: "Badak Sumatera",
+        type: "Beast",
+        element: "Tanah",
+        description:
+            "Badak terkecil di dunia dan satu-satunya badak Asia yang memiliki dua cula. Merupakan simbol ketangguhan hutan hujan Sumatera yang kini statusnya sangat kritis dan dilindungi dengan ketat.",
+        modelUrl: "/model/badag.glb",
+        accent: "text-slate-800",
+        habitat: "Hutan Hujan",
+        status: "Sangat Kritis",
+        level: 28,
+        exp: 75,
+        scale: 1.2,
+        position: [0, 1.5, 0],
+    },
 ];

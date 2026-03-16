@@ -89,6 +89,7 @@ function generateAnimalData(count: number, seedStart: number) {
 export const KOMODO_DATA = generateAnimalData(15, 8812);
 export const ORANGUTAN_DATA = generateAnimalData(15, 9923);
 export const RAJAWALI_DATA = generateAnimalData(15, 1134);
+export const BADAK_DATA = generateAnimalData(12, 5511);
 export const BATU_DATA = generateAnimalData(40, 4422);
 
 export function randomizeBatuPosition(id: number) {
@@ -399,6 +400,9 @@ export default function Planet({ playerRef }: { playerRef?: React.MutableRefObje
             {RAJAWALI_DATA.map((data, i) => (
                 <Animal key={`rajawali-${i}`} path="/model/rajawali.glb" position={data.position.clone().addScaledVector(data.normal, 3)} normal={data.normal} rotationY={data.rotationY} scale={data.scale * 0.6} />
             ))}
+            {BADAK_DATA.map((data, i) => (
+                <Animal key={`badak-${i}`} path="/model/badag.glb" position={data.position.clone().addScaledVector(data.normal, 0)} normal={data.normal} rotationY={data.rotationY} scale={data.scale * 0.4} />
+            ))}
             {POS_DATA.map((data, i) => (
                 <Animal key={`pos-${i}`} path="/model/Pos.glb" position={data.position} normal={data.normal} rotationY={data.rotationY} scale={data.scale} />
             ))}
@@ -420,6 +424,7 @@ useGLTF.preload('/model/pohon.glb');
 useGLTF.preload('/model/komodo.glb');
 useGLTF.preload('/model/OrangUtan.glb');
 useGLTF.preload('/model/rajawali.glb');
+useGLTF.preload('/model/badag.glb');
 useGLTF.preload('/model/batuFinal.glb');
 useGLTF.preload('/model/Pos.glb');
 useGLTF.preload('/model/Kakek.glb');

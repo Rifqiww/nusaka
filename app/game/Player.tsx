@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF, useAnimations, Hud, OrthographicCamera } from '@react-three/drei'
 import * as THREE from 'three'
 import { PLANET_RADIUS, TREES_DATA, KOMODO_DATA, ORANGUTAN_DATA, RAJAWALI_DATA, BATU_DATA } from './Planet'
+import { PLANET_RADIUS, TREES_DATA, KOMODO_DATA, ORANGUTAN_DATA, RAJAWALI_DATA, POS_DATA, NPC_DATA } from './Planet'
 import { useJoystickStore } from './store'
 import { useBattleStore } from './battleStore'
 import { useStoneStore } from './stoneStore'
@@ -15,6 +16,8 @@ const COLLIDERS = [
     ...KOMODO_DATA.map(k => ({ pos: k.position, radius: 2.5, type: 'animal' as const, id: 2 })),
     ...ORANGUTAN_DATA.map(o => ({ pos: o.position, radius: 2.5, type: 'animal' as const, id: 3 })),
     ...RAJAWALI_DATA.map(r => ({ pos: r.position, radius: 1.5, type: 'animal' as const, id: 1 })),
+    ...POS_DATA.map(p => ({ pos: p.position, radius: p.scale * 0.8, type: 'object' as const, id: null })),
+    { pos: NPC_DATA.position, radius: 1.5, type: 'npc' as const, id: null },
 ];
 
 // --- Pre-allocate reusable THREE objects to prevent per-frame GC pressure ---
@@ -232,7 +235,7 @@ function CartoonSmoke({ playerPosition, isMovingRef }: { playerPosition: React.M
     );
 }
 
-export default function Player() {
+export default function Player({ positionRef }: { positionRef?: React.MutableRefObject<THREE.Vector3> }) {
     const group = useRef<THREE.Group>(null)
     const lightGroupRef = useRef<THREE.Group>(null)
 
@@ -246,7 +249,8 @@ export default function Player() {
 
     const menuState = useJoystickStore(s => s.menuState)
 
-    const playerPosition = useRef(new THREE.Vector3(0, PLANET_RADIUS, 0))
+    const internalPosition = useRef(new THREE.Vector3(0, PLANET_RADIUS, 0))
+    const playerPosition = positionRef || internalPosition
     const cameraForward = useRef(new THREE.Vector3(0, 0, -1))
     const targetRotation = useRef(new THREE.Quaternion())
 
@@ -486,6 +490,10 @@ export default function Player() {
                     if (distSq < 15 * 15) {
                         nearStoneId = col.id;
                     }
+                // Even larger detection radius (30m) for better reliability when moving
+                if (distSq < 30 * 30 && distSq < closestDistSq) {
+                    closestDistSq = distSq;
+                    closestAnimalId = col.id;
                 }
             }
 

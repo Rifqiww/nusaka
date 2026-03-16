@@ -4,6 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import { Animal } from './Animal'
 import { useStoneStore } from './stoneStore'
+import { NPC } from './NPC'
 
 export const PLANET_RADIUS = 150;
 
@@ -42,8 +43,8 @@ export const TREES_DATA = Array.from({ length: TREE_COUNT }).map(() => {
     const spawnPoint = new THREE.Vector3(0, PLANET_RADIUS, 0);
     const distanceToSpawn = tree.position.distanceTo(spawnPoint);
 
-    // Clear a safe radius of 80 units around the spawn to keep both player and camera clear
-    return distanceToSpawn > 80;
+    // Clear a safe radius of 25 units around the spawn to keep both player and camera clear
+    return distanceToSpawn > 25;
 });
 
 function generateAnimalData(count: number, seedStart: number) {
@@ -70,7 +71,7 @@ function generateAnimalData(count: number, seedStart: number) {
     }).filter(animal => {
         // Clear a safe radius around the player's spawn point
         const spawnPoint = new THREE.Vector3(0, PLANET_RADIUS, 0);
-        if (animal.position.distanceToSquared(spawnPoint) < 80 * 80) return false;
+        if (animal.position.distanceToSquared(spawnPoint) < 35 * 35) return false;
 
         // Ensure animals don't spawn inside trees
         for (let i = 0; i < TREES_DATA.length; i++) {
@@ -109,6 +110,25 @@ export function randomizeBatuPosition(id: number) {
     
     BATU_DATA[id].rotationY = Math.random() * Math.PI * 2;
 }
+
+export const POS_DATA = [
+    { pos: new THREE.Vector3(35, 0, 15), rot: 0 },
+    { pos: new THREE.Vector3(-35, 0, -15), rot: 0 },
+    { pos: new THREE.Vector3(15, 0, -40), rot: 0 },
+    { pos: new THREE.Vector3(-15, 0, 40), rot: 0 },
+].map(d => {
+    // Positioned slightly lower (radius - 0.7) to ensure they sit firmly on the ground
+    const position = new THREE.Vector3(d.pos.x, PLANET_RADIUS, d.pos.z).normalize().multiplyScalar(PLANET_RADIUS - 0.2);
+    const normal = position.clone().normalize();
+    return { position, normal, rotationY: d.rot, scale: 6 };
+});
+
+export const NPC_DATA = {
+    position: new THREE.Vector3(15, PLANET_RADIUS, -32).normalize().multiplyScalar(PLANET_RADIUS),
+    normal: new THREE.Vector3(15, PLANET_RADIUS, -32).normalize(),
+    rotationY: 0,
+    scale: 2
+};
 
 // Pre-allocate a stable quaternion for tree orientation to avoid per-frame alloc
 const _treeUp = new THREE.Vector3(0, 1, 0);
@@ -167,83 +187,109 @@ function Trees() {
         return matrices;
     }, []);
 
-    const prevCamPos = useRef(new THREE.Vector3(Infinity, Infinity, Infinity)); // Force first check to pass
-    const _tempMatrix = useMemo(() => new THREE.Matrix4(), []);
     const _frustum = useMemo(() => new THREE.Frustum(), []);
     const _projScreenMatrix = useMemo(() => new THREE.Matrix4(), []);
-    const _treeSphere = useMemo(() => new THREE.Sphere(new THREE.Vector3(), 8), []); // 8 unit buffer radius
+    const _treeSphere = useMemo(() => new THREE.Sphere(new THREE.Vector3(), 5), []);
 
-    const prevCamQuat = useRef(new THREE.Quaternion());
-    const lastVisibleCount = useRef(-1);
+    const prevUpdatePos = useRef(new THREE.Vector3());
+    const prevUpdateQuat = useRef(new THREE.Quaternion());
+    const lastVisibleCountShadow = useRef(0);
+    const lastVisibleCountNoShadow = useRef(0);
 
-    // Stable buffer to avoid re-allocating memory
-    const packedBuffer = useMemo(() => new Float32Array(TREES_DATA.length * 16), []);
-    const hasInitialized = useRef(false);
+    // Stable buffers to avoid re-allocating memory
+    const packedBufferShadow = useMemo(() => new Float32Array(TREES_DATA.length * 16), []);
+    const packedBufferNoShadow = useMemo(() => new Float32Array(TREES_DATA.length * 16), []);
+    
+    const meshShadowRef = useRef<THREE.InstancedMesh>(null);
+    const meshNoShadowRef = useRef<THREE.InstancedMesh>(null);
 
-    useFrame(() => {
-        if (!meshRef.current || !treeMesh) return;
+    const renderDist = 170; // Slightly reduced for better mobile horizon
+    const shadowDist = 45; // Only trees within 45m cast shadows - HUGE performance boost for mobile
 
-        // 1. Threshold check: only re-calculate if camera moved/rotated enough
-        const distSq = camera.position.distanceToSquared(prevCamPos.current);
-        const rotDiff = camera.quaternion.angleTo(prevCamQuat.current);
+    useFrame((state) => {
+        if (!meshShadowRef.current || !meshNoShadowRef.current || !treeMesh) return;
+        
+        const camPos = state.camera.position;
+        const camQuat = state.camera.quaternion;
 
-        // Slightly tighter threshold (1m or 5 deg) for better responsiveness
-        if (!hasInitialized.current || distSq > 1 || rotDiff > 0.08) {
-            hasInitialized.current = true;
-            prevCamPos.current.copy(camera.position);
-            prevCamQuat.current.copy(camera.quaternion);
+        // Optimization: Only update visibility if camera moved or rotated significantly
+        const distMoved = camPos.distanceToSquared(prevUpdatePos.current);
+        const rotDiff = camQuat.angleTo(prevUpdateQuat.current);
+        if (distMoved < 0.2 * 0.2 && rotDiff < 0.05) return;
 
-            // Update Frustum
-            _projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-            _frustum.setFromProjectionMatrix(_projScreenMatrix);
+        prevUpdatePos.current.copy(camPos);
+        prevUpdateQuat.current.copy(camQuat);
 
-            let visibleCount = 0;
-            const treeCount = TREES_DATA.length;
+        state.camera.updateMatrixWorld();
+        _projScreenMatrix.multiplyMatrices(state.camera.projectionMatrix, state.camera.matrixWorldInverse);
+        _frustum.setFromProjectionMatrix(_projScreenMatrix);
 
-            // Render trees that are NEAR player (for shadows) OR in FRUSTUM (for visuals)
-            for (let i = 0; i < treeCount; i++) {
-                const tree = TREES_DATA[i];
-                const dSq = camera.position.distanceToSquared(tree.position);
+        let vCountShadow = 0;
+        let vCountNoShadow = 0;
+        const treeCount = TREES_DATA.length;
 
-                // If within 40m, always show (ensures shadows are correct)
-                // Otherwise, check if in camera frustum
-                let isVisible = false;
-                if (dSq < 200 * 200) {
-                    if (dSq < 40 * 40) {
-                        isVisible = true;
-                    } else {
-                        _treeSphere.center.copy(tree.position);
-                        isVisible = _frustum.intersectsSphere(_treeSphere);
-                    }
+        for (let i = 0; i < treeCount; i++) {
+            const tree = TREES_DATA[i];
+            const dSq = camPos.distanceToSquared(tree.position);
+
+            if (dSq < renderDist * renderDist) {
+                // If within shadow dist, check if in view
+                // Near-field buffer (shadows behind you)
+                let inView = dSq < 60 * 60; 
+                if (!inView) {
+                    _treeSphere.center.copy(tree.position).addScaledVector(tree.normal, tree.scale * 0.5);
+                    _treeSphere.radius = tree.scale * 2.0; 
+                    inView = _frustum.intersectsSphere(_treeSphere);
                 }
 
-                if (isVisible) {
-                    const offset = visibleCount * 16;
+                if (inView) {
                     const srcOffset = i * 16;
-                    for (let j = 0; j < 16; j++) {
-                        packedBuffer[offset + j] = treeMatrices[srcOffset + j];
+                    // Split between shadow-casters and non-shadow-casters
+                    if (dSq < shadowDist * shadowDist) {
+                        const offset = vCountShadow * 16;
+                        for (let j = 0; j < 16; j++) packedBufferShadow[offset + j] = treeMatrices[srcOffset + j];
+                        vCountShadow++;
+                    } else {
+                        const offset = vCountNoShadow * 16;
+                        for (let j = 0; j < 16; j++) packedBufferNoShadow[offset + j] = treeMatrices[srcOffset + j];
+                        vCountNoShadow++;
                     }
-                    visibleCount++;
                 }
             }
-
-            // 2. Only upload to GPU if the visible set changed
-            meshRef.current.count = visibleCount;
-            meshRef.current.instanceMatrix.array.set(packedBuffer);
-            meshRef.current.instanceMatrix.needsUpdate = true;
-            lastVisibleCount.current = visibleCount;
         }
-    });
+
+        // Apply Shadowed Mesh
+        meshShadowRef.current.count = vCountShadow;
+        meshShadowRef.current.instanceMatrix.array.set(packedBufferShadow);
+        meshShadowRef.current.instanceMatrix.needsUpdate = true;
+
+        // Apply No-Shadow Mesh
+        meshNoShadowRef.current.count = vCountNoShadow;
+        meshNoShadowRef.current.instanceMatrix.array.set(packedBufferNoShadow);
+        meshNoShadowRef.current.instanceMatrix.needsUpdate = true;
+    }, 10);
 
     if (!treeMesh) return null;
 
     return (
-        <instancedMesh
-            ref={meshRef}
-            args={[treeMesh.geometry, toonMaterial, TREES_DATA.length]}
-            castShadow
-            receiveShadow
-        />
+        <group>
+            {/* Near trees: Cast & Receive shadows */}
+            <instancedMesh
+                ref={meshShadowRef}
+                args={[treeMesh.geometry, toonMaterial, TREES_DATA.length]}
+                castShadow
+                receiveShadow
+                frustumCulled={false}
+            />
+            {/* Distant trees: ONLY Receive shadows (Disable CastShadow for perf) */}
+            <instancedMesh
+                ref={meshNoShadowRef}
+                args={[treeMesh.geometry, toonMaterial, TREES_DATA.length]}
+                castShadow={false}
+                receiveShadow
+                frustumCulled={false}
+            />
+        </group>
     );
 }
 
@@ -275,6 +321,7 @@ function Stone({ data }: { data: any }) {
 }
 
 export default function Planet() {
+export default function Planet({ playerRef }: { playerRef?: React.MutableRefObject<THREE.Vector3> }) {
     const planetRef = useRef<THREE.Mesh>(null)
     // Force re-render of stones when respawn triggered
     const respawnTrigger = useStoneStore(s => s.respawnTrigger);
@@ -353,6 +400,19 @@ export default function Planet() {
             {RAJAWALI_DATA.map((data, i) => (
                 <Animal key={`rajawali-${i}`} path="/model/rajawali.glb" position={data.position.clone().addScaledVector(data.normal, 3)} normal={data.normal} rotationY={data.rotationY} scale={data.scale * 0.6} />
             ))}
+            {POS_DATA.map((data, i) => (
+                <Animal key={`pos-${i}`} path="/model/Pos.glb" position={data.position} normal={data.normal} rotationY={data.rotationY} scale={data.scale} />
+            ))}
+            {playerRef && (
+                <NPC 
+                    path="/model/Kakek.glb" 
+                    position={NPC_DATA.position} 
+                    normal={NPC_DATA.normal} 
+                    rotationY={NPC_DATA.rotationY} 
+                    scale={NPC_DATA.scale}
+                    playerRef={playerRef}
+                />
+            )}
         </group>
     )
 }
@@ -362,3 +422,5 @@ useGLTF.preload('/model/komodo.glb');
 useGLTF.preload('/model/OrangUtan.glb');
 useGLTF.preload('/model/rajawali.glb');
 useGLTF.preload('/model/batuFinal.glb');
+useGLTF.preload('/model/Pos.glb');
+useGLTF.preload('/model/Kakek.glb');

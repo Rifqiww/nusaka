@@ -72,6 +72,21 @@ export default function ProfilePage() {
               Info Penjelajah
             </h1>
           </div>
+          <button
+            onClick={async () => {
+              startTransition(async () => {
+                const { auth } = await import('@/lib/firebase');
+                await auth.signOut();
+                useJoystickStore.getState().reset();
+                useCreatureStore.getState().reset();
+                router.push('/');
+                // Transition will be finished by GlobalTransition on path change
+              });
+            }}
+            className="px-6 py-2 bg-[#F59E0B] hover:bg-[#D97706] text-white border-[4px] border-[#374151] rounded-2xl shadow-[4px_4px_0_#374151] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all text-2xl font-black"
+          >
+            Keluar
+          </button>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 md:gap-6 lg:gap-8 flex-1">

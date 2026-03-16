@@ -8,7 +8,7 @@ import { Joystick } from 'react-joystick-component'
 import { useJoystickStore } from './game/store'
 import { useTransitionStore } from './store/transitionStore'
 import { auth } from '../lib/firebase'
-import { signInAnonymously, onAuthStateChanged, User } from 'firebase/auth'
+import { onAuthStateChanged, User } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { Loader2, User as UserIcon, Sword, Volume2, VolumeX } from 'lucide-react'
@@ -21,13 +21,14 @@ import BattleUI from './game/BattleUI';
 import BatuQuiz from './game/BatuQuiz';
 import AudioPlayerControl from '../components/AudioPlayerControl';
 
+import AuthOverlay from '../components/AuthOverlay';
+import CharacterSelectionOverlay from '../components/CharacterSelectionOverlay';
+
 const GameScene = dynamic(() => import('./game/GameScene'), { ssr: false })
 
 export default function Home() {
   const router = useRouter()
 
-  // Only subscribe to the specific fields needed to render UI — avoid subscribing
-  // to forward/right/joystick values which change 60x/sec and would re-render the whole page
   const menuState = useJoystickStore(s => s.menuState)
   const hasSaveData = useJoystickStore(s => s.hasSaveData)
   const playerName = useJoystickStore(s => s.playerName)
@@ -36,10 +37,8 @@ export default function Home() {
   const setNusadexOpen = useJoystickStore(s => s.setNusadexOpen)
 
   const { hasNewNotif } = useNotifStore();
-  const { startTransition } = useTransitionStore()
+  const { startTransition, finishTransition } = useTransitionStore()
 
-  // Use ref-based access for nearbyCreature so the battle button logic
-  // doesn't force a re-render on every proximity change in useFrame
   const nearbyCreature = useBattleStore(s => s.nearbyCreature)
   const startBattle = useBattleStore(s => s.startBattle)
   const firstPartner = useCreatureStore(s => s.firstPartner)
@@ -66,7 +65,7 @@ export default function Home() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []); // No deps — reads from store directly
+  }, []);
 
   // 1. Check Auth & Save Data on Mount
   useEffect(() => {
@@ -74,13 +73,7 @@ export default function Home() {
       if (user) {
         await checkSaveData(user)
       } else {
-        try {
-          const credentials = await signInAnonymously(auth)
-          await checkSaveData(credentials.user)
-        } catch (error) {
-          console.error('Auth error:', error)
-          setMenuState('main')
-        }
+        setMenuState('auth')
       }
     })
     return () => unsubscribe()
@@ -94,6 +87,12 @@ export default function Home() {
       if (docSnap.exists()) {
         const data = docSnap.data()
         setPlayerProfile(user.uid, data.name, true)
+        
+        // Sync partner to creature store if exists in firestore
+        if (data.partner) {
+            useCreatureStore.getState().setFirstPartner(data.partner);
+        }
+        
         hasSave = true
       } else {
         setPlayerProfile(user.uid, null, false)
@@ -102,12 +101,18 @@ export default function Home() {
       console.error('Firestore error:', error)
     } finally {
       setTimeout(() => {
-        useJoystickStore.getState().setMenuState(hasSave ? 'playing' : 'main')
+        // After check, if they have save, go to selection. If not, go to main (create).
+        startTransition(() => {
+            useJoystickStore.getState().setMenuState(hasSave ? 'select_character' : 'main')
+            setTimeout(() => {
+                finishTransition();
+            }, 600);
+        });
       }, 800)
     }
   }
 
-  // Joystick handlers — use getState() to avoid binding to React render cycle
+  // Joystick handlers
   const handleJoystickMove = useCallback((e: any) => {
     useJoystickStore.getState().setMovement(e.y, e.x)
   }, [])
@@ -131,6 +136,17 @@ export default function Home() {
       setMenuState('batu_quiz');
     }
   }, [setMenuState])
+  const handleLogout = async () => {
+    startTransition(async () => {
+        await auth.signOut();
+        useJoystickStore.getState().reset(); // Reset joystick store state
+        useCreatureStore.getState().reset(); // Reset creature store state
+        setMenuState('auth'); // Go back to auth screen
+        setTimeout(() => {
+            finishTransition();
+        }, 600);
+    });
+  }
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#87CEEB]">
@@ -147,42 +163,65 @@ export default function Home() {
             <div className="relative w-80 h-36 md:w-[400px] md:h-48 drop-shadow-2xl transition-transform hover:scale-105 duration-300 mb-4">
               <img src="/Nusaka.svg" alt="Nusaka Logo" className="absolute inset-0 w-full h-full object-contain" />
             </div>
+      {menuState !== 'playing' && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none bg-[#FFF9E6]/30 backdrop-blur-xl transition-all duration-700">
+          <div className="pointer-events-auto w-full flex flex-col items-center justify-center h-full max-w-4xl px-4">
+            
+            {(menuState === 'checking' || menuState === 'auth') && (
+               <div className="relative w-80 h-36 md:w-[400px] md:h-48 transition-transform hover:scale-105 duration-300 mb-8">
+                  <img src="/Nusaka.svg" alt="Nusaka Logo" className="absolute inset-0 w-full h-full object-contain filter drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]" />
+               </div>
+            )}
 
-            {/* STATE 1: CHECKING DATA */}
+            {/* STATE: AUTH */}
+            {menuState === 'auth' && <AuthOverlay />}
+
+            {/* STATE: CHECKING DATA */}
             {menuState === 'checking' && (
-              <div className="flex flex-col items-center p-8">
-                <Loader2 className="w-12 h-12 text-white animate-spin mb-4" />
-                <p style={{ fontFamily: 'var(--font-nanum-pen)' }} className="text-white text-4xl tracking-wider animate-pulse drop-shadow-md">
-                  Memeriksa Data Penjelajah...
+              <div className="flex flex-col items-center p-12 bg-[#FFF9E6] rounded-[40px] border-[5px] border-[#374151] shadow-[10px_10px_0_#374151] relative overflow-hidden">
+                <div
+                    className="absolute inset-0 z-0 pointer-events-none opacity-10"
+                    style={{ backgroundImage: 'radial-gradient(#374151 2px, transparent 2px)', backgroundSize: '16px 16px' }}
+                />
+                <Loader2 className="w-16 h-16 text-[#374151] animate-spin mb-6 relative z-10" />
+                <p style={{ fontFamily: 'var(--font-nanum-pen)' }} className="text-[#374151] text-5xl tracking-wider animate-pulse relative z-10">
+                  Memeriksa Jurnal...
                 </p>
               </div>
             )}
 
-            {/* STATE 2: MAIN MENU */}
+            {/* STATE: CHARACTER SELECTION */}
+            {menuState === 'select_character' && <CharacterSelectionOverlay />}
+
+            {/* STATE: MAIN MENU (No Character Yet) */}
             {menuState === 'main' && (
-              <div className="flex flex-col items-center gap-8">
-                {hasSaveData ? (
-                  <button
-                    onClick={() => setMenuState('playing')}
-                    className="group flex flex-col items-center transition-all duration-300 hover:scale-110"
-                  >
-                    <span style={{ fontFamily: 'var(--font-nanum-pen)' }} className="text-white text-6xl md:text-[5rem] drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] hover:text-green-300 transition-colors">
-                      Lanjutkan Petualangan!
-                    </span>
-                    <span style={{ fontFamily: 'var(--font-nanum-pen)' }} className="text-white/80 text-2xl mt-1">
-                      Selamat datang kembali, {playerName}!
-                    </span>
-                  </button>
-                ) : (
+              <div className="flex flex-col items-center gap-10">
+                  <div className="relative w-80 h-36 md:w-[400px] md:h-48 mb-2">
+                    <img src="/Nusaka.svg" alt="Nusaka Logo" className="absolute inset-0 w-full h-full object-contain filter drop-shadow-lg" />
+                  </div>
+                  
                   <button
                     onClick={() => startTransition(() => router.push('/create-character'))}
-                    className="group flex flex-col items-center transition-all duration-300 hover:scale-110"
+                    className="group relative flex flex-col items-center p-10 bg-[#68D77B] border-[6px] border-[#374151] rounded-[48px] shadow-[14px_14px_0_#374151] hover:-translate-y-2 hover:shadow-[14px_20px_0_#374151] transition-all duration-300"
                   >
-                    <span style={{ fontFamily: 'var(--font-nanum-pen)' }} className="text-white text-6xl md:text-[5rem]">
-                      Buat karakter mu!
+                    <span style={{ fontFamily: 'var(--font-nanum-pen)' }} className="text-[#374151] text-6xl md:text-8xl drop-shadow-[2px_2px_0_rgba(255,255,255,0.8)] group-hover:text-white transition-colors leading-tight">
+                      Mulai Petualangan!
                     </span>
+                    <div className="flex items-center gap-3 mt-4">
+                      <div className="h-[2px] w-8 bg-[#374151]/20" />
+                      <p className="text-[#374151]/50 text-xl md:text-2xl font-sans uppercase tracking-[.3em] font-black">
+                        Buat Karakter Baru
+                      </p>
+                      <div className="h-[2px] w-8 bg-[#374151]/20" />
+                    </div>
                   </button>
-                )}
+                  
+                  <button 
+                    onClick={handleLogout} 
+                    className="text-[#374151]/70 hover:text-[#D97706] transition-colors underline underline-offset-8 font-sans text-sm tracking-widest uppercase font-black"
+                  >
+                    Ganti Akun
+                  </button>
               </div>
             )}
           </div>
@@ -222,7 +261,7 @@ export default function Home() {
             />
             {/* Notification Dot */}
             {hasNewNotif && (
-              <div className="absolute top-2 right-1 md:top-4 md:right-3 w-5 h-5 md:w-6 md:h-6 bg-red-600 rounded-full border-[3px] border-white animate-pulse" />
+              <div className="absolute top-2 right-1 md:top-4 md:right-3 w-5 h-5 md:w-6 md:h-6 bg-[#FBBF24] rounded-full border-[3px] border-white shadow-[0_0_10px_#FBBF24] animate-pulse" />
             )}
           </div>
         )}

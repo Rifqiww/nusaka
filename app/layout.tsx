@@ -22,7 +22,10 @@ const nanumPen = Nanum_Pen_Script({
 
 export const metadata: Metadata = {
   title: "Nusaka",
-  description: "A 3D Interactive Web Experience",
+  description: "Kenali Hewan Nusaka",
+  icons: {
+    icon: "/Favicon.svg",
+  },
 };
 
 export default function RootLayout({

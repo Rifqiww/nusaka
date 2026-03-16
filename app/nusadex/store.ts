@@ -16,6 +16,7 @@ export interface CreatureState {
     updateCreature: (creature: PartnerCreature) => void;
     setFirstPartner: (creature: Omit<PartnerCreature, 'instanceId'> & { instanceId?: string }) => void;
     markAsSeen: (id: number) => void;
+    reset: () => void;
 }
 
 export const useCreatureStore = create<CreatureState>()(
@@ -61,6 +62,12 @@ export const useCreatureStore = create<CreatureState>()(
                         ? state.seenIds
                         : [...state.seenIds, id],
                 })),
+            reset: () => set({
+                capturedCreatures: [],
+                firstPartner: null,
+                hasChosenPartner: false,
+                seenIds: [],
+            }),
         }),
         {
             name: 'creature-storage',

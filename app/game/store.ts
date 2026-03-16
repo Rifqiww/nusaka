@@ -19,6 +19,9 @@ interface JoystickState {
   menuState: "checking" | "main" | "create_character" | "playing" | "battle" | "batu_quiz";
   setMenuState: (
     state: "checking" | "main" | "create_character" | "playing" | "battle" | "batu_quiz",
+  menuState: "checking" | "auth" | "main" | "select_character" | "create_character" | "playing" | "battle";
+  setMenuState: (
+    state: "checking" | "auth" | "main" | "select_character" | "create_character" | "playing" | "battle",
   ) => void;
 
   isNusadexOpen: boolean;
@@ -29,6 +32,7 @@ interface JoystickState {
 
   audioVolume: number;
   setAudioVolume: (volume: number) => void;
+  reset: () => void;
 }
 
 export const useJoystickStore = create<JoystickState>((set) => ({
@@ -48,6 +52,7 @@ export const useJoystickStore = create<JoystickState>((set) => ({
   menuState: "checking",
   setMenuState: (state: "checking" | "main" | "create_character" | "playing" | "battle" | "batu_quiz") =>
     set({ menuState: state }),
+  setMenuState: (state) => set({ menuState: state }),
 
   isNusadexOpen: false,
   setNusadexOpen: (isOpen: boolean) => set({ isNusadexOpen: isOpen }),
@@ -57,4 +62,11 @@ export const useJoystickStore = create<JoystickState>((set) => ({
 
   audioVolume: 0.4,
   setAudioVolume: (volume) => set({ audioVolume: volume }),
+
+  reset: () => set({
+    playerId: null,
+    playerName: null,
+    hasSaveData: null,
+    menuState: "auth",
+  }),
 }));

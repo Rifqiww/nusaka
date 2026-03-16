@@ -88,9 +88,26 @@ export default function ChoosePartnerPage() {
             ...selectedCreature,
             nickname: nickname.trim() || selectedCreature.name,
         }
-        setFirstPartner(partner)
-        setStep('reveal')
-        setIsSaving(false)
+        
+        try {
+            const { db, auth } = await import('../../lib/firebase');
+            const { doc, updateDoc } = await import('firebase/firestore');
+            const user = auth.currentUser;
+            if (user) {
+                await updateDoc(doc(db, 'players', user.uid), {
+                    partner: partner
+                });
+            }
+            setFirstPartner(partner)
+            setStep('reveal')
+        } catch (err) {
+            console.error('Error saving partner:', err);
+            // Fallback to local store only if firestore fails
+            setFirstPartner(partner)
+            setStep('reveal')
+        } finally {
+            setIsSaving(false)
+        }
     }
 
     const handleFinish = () => {

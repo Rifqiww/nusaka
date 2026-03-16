@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
-import { useThree } from '@react-three/fiber'
+import { useThree, useFrame } from '@react-three/fiber'
 import { useGLTF, useAnimations } from '@react-three/drei'
 import { SkeletonUtils } from 'three-stdlib'
 
@@ -14,39 +14,19 @@ interface AnimalProps {
 
 // Shared LOD system: instead of 45 separate useFrame callbacks,
 // we use a single interval. We also PAUSE skeletal animations when out of view.
-const lodRegistry = new Map<THREE.Group, { position: THREE.Vector3, setVisible: (v: boolean) => void }>();
-
-let lodInterval: ReturnType<typeof setInterval> | null = null;
-let registeredCamera: THREE.Camera | null = null;
-const LOD_INTERVAL_MS = 250; // 4fps is fine for LOD decisions
-const RENDER_DIST_SQ = 150 * 150;
-
 const _frustum = new THREE.Frustum();
 const _projScreenMatrix = new THREE.Matrix4();
-const _animalSphere = new THREE.Sphere(new THREE.Vector3(), 5); // 5 unit margin for animals
+const _animalSphere = new THREE.Sphere(new THREE.Vector3(), 5);
 
-function startLodSystem() {
-    if (lodInterval) return;
-    lodInterval = setInterval(() => {
-        if (!registeredCamera) return;
-
-        // Calculate frustum once per interval tick to save CPU
-        _projScreenMatrix.multiplyMatrices(registeredCamera.projectionMatrix, registeredCamera.matrixWorldInverse);
-        _frustum.setFromProjectionMatrix(_projScreenMatrix);
-
-        lodRegistry.forEach((data, groupRef) => {
-            const distSq = registeredCamera!.position.distanceToSquared(data.position);
-
-            _animalSphere.center.copy(data.position);
-            // Use sphere intersection to prevent animals popping out when near screen edges
-            const isVisible = distSq < RENDER_DIST_SQ && _frustum.intersectsSphere(_animalSphere);
-
-            if (groupRef.visible !== isVisible) {
-                groupRef.visible = isVisible;
-                data.setVisible(isVisible);
-            }
-        });
-    }, LOD_INTERVAL_MS);
+// Shared state to avoid recalculating frustum 45+ times per frame
+let lastFrustumFrame = -1;
+function updateSharedFrustum(camera: THREE.Camera, clock: THREE.Clock) {
+    const frame = clock.getElapsedTime();
+    if (lastFrustumFrame === frame) return;
+    lastFrustumFrame = frame;
+    camera.updateMatrixWorld();
+    _projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    _frustum.setFromProjectionMatrix(_projScreenMatrix);
 }
 
 export function Animal({ path, position, normal, rotationY, scale = 1 }: AnimalProps) {
@@ -84,33 +64,37 @@ export function Animal({ path, position, normal, rotationY, scale = 1 }: AnimalP
 
     const { ref, actions, names, mixer } = useAnimations(animations)
     const groupRef = useRef<THREE.Group>(null)
-    const { camera } = useThree()
 
-    // Register with centralized LOD system
-    useEffect(() => {
-        registeredCamera = camera;
-        if (groupRef.current) {
-            lodRegistry.set(groupRef.current, {
-                position,
-                setVisible: (v: boolean) => {
-                    // Halt expensive skeletal animation matrix calculations when invisible
-                    mixer.timeScale = v ? 1 : 0;
-                }
-            });
+    // Per-frame LOD check - balanced distance for performance
+    const renderDist = 200;
+
+    useFrame((state) => {
+        if (!groupRef.current) return;
+
+        // Ensure frustum is updated for this frame
+        updateSharedFrustum(state.camera, state.clock);
+
+        const distSq = state.camera.position.distanceToSquared(position);
+        
+        // Render loop for Frustum + Near-field check
+        let isVisible = false;
+        if (distSq < renderDist * renderDist) {
+            // Near-field always visible (for shadows/peripherals)
+            if (distSq < 60 * 60) {
+                isVisible = true;
+            } else {
+                // Check if inside camera view
+                _animalSphere.center.copy(position);
+                _animalSphere.radius = scale * 5.0; // Margin to prevent popping
+                isVisible = _frustum.intersectsSphere(_animalSphere);
+            }
         }
-        startLodSystem();
 
-        return () => {
-            if (groupRef.current) {
-                lodRegistry.delete(groupRef.current);
-            }
-            // Stop interval when no animals remain
-            if (lodRegistry.size === 0 && lodInterval) {
-                clearInterval(lodInterval);
-                lodInterval = null;
-            }
-        };
-    }, [camera, position]);
+        if (groupRef.current.visible !== isVisible) {
+            groupRef.current.visible = isVisible;
+            if (mixer) mixer.timeScale = isVisible ? 1 : 0;
+        }
+    }, 10);
 
     useEffect(() => {
         if (names.length > 0 && Math.random() < 0.05) {

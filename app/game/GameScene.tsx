@@ -6,7 +6,7 @@ import * as THREE from 'three'
 import Planet from './Planet'
 import Player from './Player'
 
-import { Suspense } from 'react'
+import { useRef, Suspense } from 'react'
 
 function SkyBox() {
     const texture = useTexture('/sky.png')
@@ -27,6 +27,8 @@ function SkyBox() {
 }
 
 export default function GameScene() {
+    const playerPositionRef = useRef(new THREE.Vector3(0, 150, 0))
+
     return (
         <Canvas shadows camera={{ position: [0, 30, 40], fov: 45 }} dpr={[1, 1]} flat gl={{ antialias: false, powerPreference: "high-performance", stencil: false, depth: true }}>
             <Suspense fallback={null}>
@@ -38,10 +40,10 @@ export default function GameScene() {
                 <SkyBox />
 
                 {/* World */}
-                <Planet />
+                <Planet playerRef={playerPositionRef} />
 
                 {/* Player */}
-                <Player />
+                <Player positionRef={playerPositionRef} />
             </Suspense>
         </Canvas>
     )

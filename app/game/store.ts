@@ -29,9 +29,13 @@ interface JoystickState {
 
   isAudioMuted: boolean;
   setAudioMuted: (isMuted: boolean) => void;
-
+  
   audioVolume: number;
   setAudioVolume: (volume: number) => void;
+
+  lastPosition: { x: number; y: number; z: number } | null;
+  setLastPosition: (pos: { x: number; y: number; z: number } | null) => void;
+  
   reset: () => void;
 }
 
@@ -64,10 +68,14 @@ export const useJoystickStore = create<JoystickState>((set) => ({
   audioVolume: 0.4,
   setAudioVolume: (volume) => set({ audioVolume: volume }),
 
+  lastPosition: null,
+  setLastPosition: (pos) => set({ lastPosition: pos }),
+
   reset: () => set({
     playerId: null,
     playerName: null,
     hasSaveData: null,
     menuState: "auth",
+    lastPosition: null,
   }),
 }));

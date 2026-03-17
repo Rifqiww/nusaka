@@ -7,7 +7,7 @@ import * as THREE from 'three'
 import { useRouter } from 'next/navigation'
 import { useJoystickStore } from '../../game/store'
 import { useTransitionStore } from '../../store/transitionStore'
-import { ChevronRight, Home } from 'lucide-react'
+import { ChevronRight, Home, BookOpen, Target, MapPin, Compass, X } from 'lucide-react'
 import { SkeletonUtils } from 'three-stdlib'
 
 // Simple direct components for common world elements to bypass Planet LOD for the character page
@@ -141,14 +141,39 @@ export default function NPCKakekPage() {
     const [dialogStep, setDialogStep] = useState(0)
     const [displayText, setDisplayText] = useState('')
     const [isTyping, setIsTyping] = useState(false)
+    const [dialogMode, setDialogMode] = useState<'intro' | 'mission'>('intro')
+    const [showMissionOptions, setShowMissionOptions] = useState(false)
+    const [storyWatched, setStoryWatched] = useState(false)
 
-    const dialogs = [
+    // Check if intro was completed on mount
+    useEffect(() => {
+        const introComplete = localStorage.getItem('kakek_intro_complete')
+        if (introComplete === 'true') {
+            setDialogMode('mission')
+        }
+        const storyStatus = localStorage.getItem('orangutan_story_watched')
+        if (storyStatus === 'true') {
+            setStoryWatched(true)
+        }
+    }, [])
+
+    const introDialogs = [
         `Hai ${playerName || 'Petualang'}!`,
         "Wah, kamu sudah sampai di sini rupanya. Selamat datang di dunia Nusaka!",
         "Dunia ini luas dan penuh dengan keajaiban. Ada banyak hewan-hewan unik yang bisa kamu temukan.",
         "Gunakan Nusadex untuk mencatat setiap pertemuanmu. Itu akan membantumu belajar lebih banyak tentang mereka.",
         "Semoga perjalananmu menyenangkan dan penuh berkah. Sampai jumpa lagi!"
     ]
+
+    const missionDialogs = [
+        `Ah, ${playerName || 'Petualang'}! Kamu datang lagi.`,
+        "Aku punya sesuatu yang penting untukmu. Ada seekor Orang Utan yang tersesat di hutan sebelah barat.",
+        "Dia adalah penjaga rimba yang mulia, tetapi kini terancam oleh pemburu liar.",
+        "Maukah kamu membantu menangkap dan melindungi Orang Utan tersebut?",
+        "Tapi sebelum itu, dengarkanlah dongeng tentang asal-usul Sang Penjaga Rimba ini..."
+    ]
+
+    const dialogs = dialogMode === 'intro' ? introDialogs : missionDialogs
 
     // Typewriter Effect
     useEffect(() => {
@@ -184,8 +209,44 @@ export default function NPCKakekPage() {
         } else if (dialogStep < dialogs.length - 1) {
             setDialogStep(prev => prev + 1)
         } else {
-            handleClose()
+            // Last dialog step
+            if (dialogMode === 'intro') {
+                // Mark intro as complete
+                localStorage.setItem('kakek_intro_complete', 'true')
+                // Switch to mission mode and show options
+                setDialogMode('mission')
+                setDialogStep(0)
+                setShowMissionOptions(true)
+            } else {
+                // In mission mode, show options instead of closing
+                setShowMissionOptions(true)
+            }
         }
+    }
+
+    const handleStartStory = async () => {
+        // Auto-accept mission when starting story
+        localStorage.setItem('orangutan_story_watched', 'true')
+        localStorage.setItem('current_mission', 'orangutan')
+        localStorage.setItem('mission_status', 'active')
+        localStorage.setItem('mission_objective', 'Tangkap Orang Utan di hutan barat')
+        
+        startTransition(() => {
+            router.push('/dongeng/orangutan')
+        })
+    }
+
+    const handleAcceptMissionDirect = () => {
+        // Skip story, accept mission directly
+        localStorage.setItem('orangutan_story_watched', 'true')
+        localStorage.setItem('current_mission', 'orangutan')
+        localStorage.setItem('mission_status', 'active')
+        localStorage.setItem('mission_objective', 'Tangkap Orang Utan di hutan barat')
+        localStorage.setItem('orangutan_mission_accepted', 'true')
+        
+        startTransition(() => {
+            router.push('/')
+        })
     }
 
     const handleClose = () => {
@@ -244,7 +305,9 @@ export default function NPCKakekPage() {
                                     className="group flex items-center gap-6 bg-[#DDA15E] hover:bg-[#BC6C25] border-4 border-[#283618] px-12 py-5 rounded-2xl shadow-[8px_8px_0_#283618] active:translate-y-2 active:shadow-none transition-all cursor-pointer"
                                 >
                                     <span style={{ fontFamily: 'var(--font-nanum-pen)' }} className="text-4xl md:text-5xl font-black text-[#FEFAE0]">
-                                        {dialogStep === dialogs.length - 1 ? "Selesai" : (isTyping ? "Skip" : "Lanjut")}
+                                        {dialogStep === dialogs.length - 1 && dialogMode === 'intro' ? "Misi Baru!" : 
+                                         dialogStep === dialogs.length - 1 && dialogMode === 'mission' && !showMissionOptions ? "Lanjutkan" : 
+                                         (isTyping ? "Skip" : "Lanjut")}
                                     </span>
                                     <ChevronRight className="w-10 h-10 md:w-12 md:h-12 text-[#FEFAE0] group-hover:translate-x-2 transition-transform" />
                                 </button>
@@ -253,6 +316,97 @@ export default function NPCKakekPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Mission Options Overlay - New Design */}
+            {showMissionOptions && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md">
+                    <div className="relative bg-[#FEFAE0] border-4 border-[#283618] rounded-3xl p-6 md:p-8 max-w-md w-full mx-4 shadow-[8px_8px_0_#283618]">
+                        {/* Close Button */}
+                        <button
+                            onClick={() => setShowMissionOptions(false)}
+                            className="absolute top-4 right-4 p-2 hover:bg-[#283618]/10 rounded-full transition-colors"
+                        >
+                            <X size={24} className="text-[#283618]" />
+                        </button>
+
+                        {/* Header */}
+                        <div className="text-center mb-6">
+                            <div className="inline-flex items-center justify-center w-16 h-16 bg-[#BC6C25] rounded-2xl border-4 border-[#283618] mb-4">
+                                <Target size={32} className="text-white" />
+                            </div>
+                            <h2 
+                                style={{ fontFamily: 'var(--font-nanum-pen)' }}
+                                className="text-3xl font-bold text-[#283618]"
+                            >
+                                Misi Baru!
+                            </h2>
+                            <p className="text-[#606C38] mt-1">Penjaga Rimba</p>
+                        </div>
+
+                        {/* Mission Card */}
+                        <div className="bg-[#BC6C25]/10 border-3 border-[#283618]/30 rounded-2xl p-4 mb-6" style={{ borderWidth: '3px' }}>
+                            <div className="flex items-start gap-3">
+                                <Compass size={20} className="text-[#BC6C25] mt-1 flex-shrink-0" />
+                                <div>
+                                    <p className="text-sm text-[#606C38] font-bold uppercase tracking-wider mb-1">Tujuan</p>
+                                    <p className="text-[#283618] font-medium">
+                                        Tangkap dan lindungi Orang Utan yang tersesat di hutan barat
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Options */}
+                        <div className="space-y-3">
+                            {/* Primary Action - Listen Story */}
+                            <button
+                                onClick={handleStartStory}
+                                className="w-full group relative overflow-hidden bg-[#606C38] hover:bg-[#4A5A28] border-4 border-[#283618] rounded-2xl p-4 transition-all shadow-[4px_4px_0_#283618] hover:shadow-[2px_2px_0_#283618] hover:translate-x-[2px] hover:translate-y-[2px] active:shadow-none active:translate-x-[4px] active:translate-y-[4px]"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-[#FEFAE0] rounded-xl flex items-center justify-center border-3 border-[#283618]" style={{ borderWidth: '3px' }}>
+                                        <BookOpen size={24} className="text-[#606C38]" />
+                                    </div>
+                                    <div className="text-left flex-1">
+                                        <p 
+                                            style={{ fontFamily: 'var(--font-nanum-pen)' }}
+                                            className="text-xl font-bold text-[#FEFAE0]"
+                                        >
+                                            Dengar Dongeng
+                                        </p>
+                                        <p className="text-[#FEFAE0]/70 text-sm">
+                                            + Terima Misi Otomatis
+                                        </p>
+                                    </div>
+                                    <ChevronRight size={24} className="text-[#FEFAE0] group-hover:translate-x-1 transition-transform" />
+                                </div>
+                            </button>
+
+                            {/* Secondary Action - Skip Story */}
+                            <button
+                                onClick={handleAcceptMissionDirect}
+                                className="w-full group bg-[#D4A574]/30 hover:bg-[#D4A574]/50 border-3 border-[#283618]/50 rounded-2xl p-3 transition-all"
+                                style={{ borderWidth: '3px' }}
+                            >
+                                <div className="flex items-center justify-center gap-2">
+                                    <MapPin size={18} className="text-[#8B6914]" />
+                                    <span 
+                                        style={{ fontFamily: 'var(--font-nanum-pen)' }}
+                                        className="text-[#8B6914] font-bold"
+                                    >
+                                        Lewati Dongeng, Langsung ke Hutan
+                                    </span>
+                                </div>
+                            </button>
+                        </div>
+
+                        {/* Hint */}
+                        <p className="text-center text-[#606C38]/60 text-sm mt-4">
+                            💡 Dongeng akan menceritakan asal-usul Orang Utan
+                        </p>
+                    </div>
+                </div>
+            )}
 
             <style jsx global>{`
                 @keyframes fade-in-bottom {

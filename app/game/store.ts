@@ -79,3 +79,30 @@ export const useJoystickStore = create<JoystickState>((set) => ({
     lastPosition: null,
   }),
 }));
+
+// Mission Store
+interface MissionState {
+  currentMission: string | null;
+  missionStatus: 'inactive' | 'active' | 'completed';
+  missionObjective: string;
+  setMission: (mission: string, objective: string) => void;
+  completeMission: () => void;
+  clearMission: () => void;
+}
+
+export const useMissionStore = create<MissionState>((set) => ({
+  currentMission: null,
+  missionStatus: 'inactive',
+  missionObjective: '',
+  setMission: (mission, objective) => set({ 
+    currentMission: mission, 
+    missionStatus: 'active',
+    missionObjective: objective 
+  }),
+  completeMission: () => set({ missionStatus: 'completed' }),
+  clearMission: () => set({ 
+    currentMission: null, 
+    missionStatus: 'inactive',
+    missionObjective: '' 
+  }),
+}));
